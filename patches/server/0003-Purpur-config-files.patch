@@ -129,8 +129,8 @@ index 000000000..1d00832bf
 +        commands = new HashMap<>();
 +        commands.put("purpur", new PurpurCommand("purpur"));
 +
-+        version = getInt("config-version", 4);
-+        set("config-version", 4);
++        version = getInt("config-version", 1);
++        set("config-version", 1);
 +
 +        readConfig(PurpurConfig.class, null);
 +    }

@@ -41,10 +41,10 @@ index 1c7b858ed..9257da968 100644
  }
 \ No newline at end of file
 diff --git a/src/main/java/net/minecraft/server/BiomeBase.java b/src/main/java/net/minecraft/server/BiomeBase.java
-index 9259ba1af..37359b1cd 100644
+index 52ebdfcc0..2a6149d42 100644
 --- a/src/main/java/net/minecraft/server/BiomeBase.java
 +++ b/src/main/java/net/minecraft/server/BiomeBase.java
-@@ -350,6 +350,10 @@ public class BiomeBase {
+@@ -333,6 +333,10 @@ public class BiomeBase {
          return (List) this.r.get(worldgenstage_decoration);
      }
  
@@ -55,7 +55,7 @@ index 9259ba1af..37359b1cd 100644
      public void a(WorldGenStage.Decoration worldgenstage_decoration, StructureManager structuremanager, ChunkGenerator chunkgenerator, GeneratorAccessSeed generatoraccessseed, long i, SeededRandom seededrandom, BlockPosition blockposition) {
          int j = 0;
          Iterator iterator;
-@@ -387,10 +391,22 @@ public class BiomeBase {
+@@ -370,10 +374,22 @@ public class BiomeBase {
              }
          }
  
