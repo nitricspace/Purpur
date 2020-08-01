@@ -5,7 +5,7 @@ Subject: [PATCH] Configurable end spike seed
 
 
 diff --git a/src/main/java/net/minecraft/server/WorldGenEnder.java b/src/main/java/net/minecraft/server/WorldGenEnder.java
-index 495d98e15..9df359d0b 100644
+index 495d98e1..9df359d0 100644
 --- a/src/main/java/net/minecraft/server/WorldGenEnder.java
 +++ b/src/main/java/net/minecraft/server/WorldGenEnder.java
 @@ -23,12 +23,14 @@ public class WorldGenEnder extends WorldGenerator<WorldGenFeatureEndSpikeConfigu
@@ -25,16 +25,25 @@ index 495d98e15..9df359d0b 100644
          List<WorldGenEnder.Spike> list = worldgenfeatureendspikeconfiguration.b();
  
 diff --git a/src/main/java/net/pl3x/purpur/PurpurConfig.java b/src/main/java/net/pl3x/purpur/PurpurConfig.java
-index 32fb17990..1f982de94 100644
+index 32fb1799..c7cbe742 100644
 --- a/src/main/java/net/pl3x/purpur/PurpurConfig.java
 +++ b/src/main/java/net/pl3x/purpur/PurpurConfig.java
-@@ -132,4 +132,9 @@ public class PurpurConfig {
+@@ -1,5 +1,6 @@
+ package net.pl3x.purpur;
+ 
++import co.aikar.timings.TimingsManager;
+ import com.google.common.base.Throwables;
+ import net.minecraft.server.MinecraftServer;
+ import net.pl3x.purpur.command.PurpurCommand;
+@@ -132,4 +133,11 @@ public class PurpurConfig {
      private static void timingsSettings() {
          timingsUrl = getString("settings.timings.url", timingsUrl);
      }
 +
 +    public static int endSpikeSeed = 1;
 +    private static void seedSettings() {
-+        endSpikeSeed = getInt("settings.seed.endspike", endSpikeSeed);
++        endSpikeSeed = getInt("settings.seed.end-spike", endSpikeSeed);
++        TimingsManager.hiddenConfigs.add("settings.seed");
++        TimingsManager.hiddenConfigs.add("settings.seed.end-spike");
 +    }
  }
