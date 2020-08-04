@@ -3,8 +3,9 @@ From: William Blake Galbreath <Blake.Galbreath@GMail.com>
 Date: Wed, 15 Jul 2020 12:40:25 -0500
 Subject: [PATCH] Configurable dungeon seed
 
+
 diff --git a/src/main/java/net/minecraft/server/WorldGenDecoratorDungeon.java b/src/main/java/net/minecraft/server/WorldGenDecoratorDungeon.java
-index 70d22299..2bebbd69 100644
+index 70d222996..2bebbd699 100644
 --- a/src/main/java/net/minecraft/server/WorldGenDecoratorDungeon.java
 +++ b/src/main/java/net/minecraft/server/WorldGenDecoratorDungeon.java
 @@ -6,6 +6,7 @@ import java.util.stream.IntStream;
@@ -37,7 +38,7 @@ index 70d22299..2bebbd69 100644
              return new BlockPosition(k, i1, l);
          });
 diff --git a/src/main/java/net/minecraft/server/WorldGenDungeons.java b/src/main/java/net/minecraft/server/WorldGenDungeons.java
-index 3c7c9364..1f6ff784 100644
+index 3c7c93645..1f6ff7848 100644
 --- a/src/main/java/net/minecraft/server/WorldGenDungeons.java
 +++ b/src/main/java/net/minecraft/server/WorldGenDungeons.java
 @@ -11,12 +11,21 @@ public class WorldGenDungeons extends WorldGenerator<WorldGenFeatureEmptyConfigu
@@ -63,7 +64,7 @@ index 3c7c9364..1f6ff784 100644
          int i = random.nextInt(2) + 2;
          int j = -i - 1;
 diff --git a/src/main/java/net/pl3x/purpur/PurpurConfig.java b/src/main/java/net/pl3x/purpur/PurpurConfig.java
-index c7cbe742..bbc8427e 100644
+index c7cbe7424..bbc8427e3 100644
 --- a/src/main/java/net/pl3x/purpur/PurpurConfig.java
 +++ b/src/main/java/net/pl3x/purpur/PurpurConfig.java
 @@ -135,9 +135,12 @@ public class PurpurConfig {
