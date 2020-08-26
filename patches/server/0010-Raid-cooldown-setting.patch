@@ -1,0 +1,66 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jmp <jasonpenilla2@me.com>
+Date: Sun, 23 Aug 2020 17:26:39 -0700
+Subject: [PATCH] Raid cooldown setting
+
+
+diff --git a/src/main/java/net/minecraft/server/PersistentRaid.java b/src/main/java/net/minecraft/server/PersistentRaid.java
+index b46b20ca..89be52ca 100644
+--- a/src/main/java/net/minecraft/server/PersistentRaid.java
++++ b/src/main/java/net/minecraft/server/PersistentRaid.java
+@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
+ 
+ public class PersistentRaid extends PersistentBase {
+ 
++    public final Map<java.util.UUID, Integer> playerCooldowns = new java.util.HashMap<>(); // Purpur
+     public final Map<Integer, Raid> raids = Maps.newHashMap();
+     private final WorldServer b;
+     private int c;
+@@ -27,6 +28,17 @@ public class PersistentRaid extends PersistentBase {
+ 
+     public void a() {
+         ++this.d;
++        // Purpur start
++        if (b.purpurConfig.raidCooldownSeconds != 0 && this.d % 20 == 0) {
++            com.google.common.collect.ImmutableMap.copyOf(playerCooldowns).forEach((id, i) -> {
++                if (i < 1) {
++                    playerCooldowns.remove(id);
++                } else {
++                    playerCooldowns.put(id, i - 1);
++                }
++            });
++        }
++        // Purpur end
+         Iterator iterator = this.raids.values().iterator();
+ 
+         while (iterator.hasNext()) {
+@@ -67,6 +79,15 @@ public class PersistentRaid extends PersistentBase {
+             if (!dimensionmanager.hasRaids()) {
+                 return null;
+             } else {
++                // Purpur start
++                if (b.purpurConfig.raidCooldownSeconds != 0) {
++                    if (!playerCooldowns.containsKey(entityplayer.getUniqueID())) {
++                        playerCooldowns.put(entityplayer.getUniqueID(), b.purpurConfig.raidCooldownSeconds);
++                    } else {
++                        return null;
++                    }
++                }
++                // Purpur end
+                 BlockPosition blockposition = entityplayer.getChunkCoordinates();
+                 List<VillagePlaceRecord> list = (List) this.b.y().c(VillagePlaceType.b, blockposition, 64, VillagePlace.Occupancy.IS_OCCUPIED).collect(Collectors.toList());
+                 int i = 0;
+diff --git a/src/main/java/net/pl3x/purpur/PurpurWorldConfig.java b/src/main/java/net/pl3x/purpur/PurpurWorldConfig.java
+index 6e97c534..2d49c18e 100644
+--- a/src/main/java/net/pl3x/purpur/PurpurWorldConfig.java
++++ b/src/main/java/net/pl3x/purpur/PurpurWorldConfig.java
+@@ -63,4 +63,9 @@ public class PurpurWorldConfig {
+         villagerBrainTicks = getInt("mobs.villager.brain-ticks", villagerBrainTicks);
+         villagerUseBrainTicksOnlyWhenLagging = getBoolean("mobs.villager.use-brain-ticks-only-when-lagging", villagerUseBrainTicksOnlyWhenLagging);
+     }
++
++    public int raidCooldownSeconds = 0;
++    private void miscGameplayMechanicsSettings() {
++        raidCooldownSeconds = getInt("gameplay-mechanics.raid-cooldown-seconds", raidCooldownSeconds);
++    }
+ }

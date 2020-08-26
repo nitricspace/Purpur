@@ -5,7 +5,7 @@ Subject: [PATCH] Configurable end spike seed
 
 
 diff --git a/src/main/java/net/minecraft/server/WorldGenEnder.java b/src/main/java/net/minecraft/server/WorldGenEnder.java
-index 495d98e1..9df359d0 100644
+index 00a17072..5eb9b3d3 100644
 --- a/src/main/java/net/minecraft/server/WorldGenEnder.java
 +++ b/src/main/java/net/minecraft/server/WorldGenEnder.java
 @@ -23,12 +23,14 @@ public class WorldGenEnder extends WorldGenerator<WorldGenFeatureEndSpikeConfigu
@@ -20,12 +20,12 @@ index 495d98e1..9df359d0 100644
          return (List) WorldGenEnder.a.getUnchecked(i);
      }
  
-+    public boolean generate(GeneratorAccessSeed generatoraccessseed, StructureManager structuremanager, ChunkGenerator chunkgenerator, Random random, BlockPosition blockposition, WorldGenFeatureEndSpikeConfiguration worldgenfeatureendspikeconfiguration) { return a(generatoraccessseed, structuremanager, chunkgenerator, random, blockposition, worldgenfeatureendspikeconfiguration); } // Purpur - decompile error?
-     public boolean a(GeneratorAccessSeed generatoraccessseed, StructureManager structuremanager, ChunkGenerator chunkgenerator, Random random, BlockPosition blockposition, WorldGenFeatureEndSpikeConfiguration worldgenfeatureendspikeconfiguration) {
-         List<WorldGenEnder.Spike> list = worldgenfeatureendspikeconfiguration.b();
++    public boolean generate(GeneratorAccessSeed generatoraccessseed, ChunkGenerator chunkgenerator, Random random, BlockPosition blockposition, WorldGenFeatureEndSpikeConfiguration worldgenfeatureendspikeconfiguration) { return a(generatoraccessseed, chunkgenerator, random, blockposition, worldgenfeatureendspikeconfiguration); } // Purpur - decompile error?
+     public boolean a(GeneratorAccessSeed generatoraccessseed, ChunkGenerator chunkgenerator, Random random, BlockPosition blockposition, WorldGenFeatureEndSpikeConfiguration worldgenfeatureendspikeconfiguration) {
+         List<WorldGenEnder.Spike> list = worldgenfeatureendspikeconfiguration.c();
  
 diff --git a/src/main/java/net/pl3x/purpur/PurpurConfig.java b/src/main/java/net/pl3x/purpur/PurpurConfig.java
-index 32fb1799..c7cbe742 100644
+index a0aec44d..ed16f6f3 100644
 --- a/src/main/java/net/pl3x/purpur/PurpurConfig.java
 +++ b/src/main/java/net/pl3x/purpur/PurpurConfig.java
 @@ -1,5 +1,6 @@
@@ -35,15 +35,18 @@ index 32fb1799..c7cbe742 100644
  import com.google.common.base.Throwables;
  import net.minecraft.server.MinecraftServer;
  import net.pl3x.purpur.command.PurpurCommand;
-@@ -132,4 +133,11 @@ public class PurpurConfig {
-     private static void timingsSettings() {
-         timingsUrl = getString("settings.timings.url", timingsUrl);
+@@ -128,6 +129,14 @@ public class PurpurConfig {
+         return config.getString(path, config.getString(path));
      }
+ 
 +
-+    public static int endSpikeSeed = 1;
++    public static int endSpikeSeed = -1;
 +    private static void seedSettings() {
 +        endSpikeSeed = getInt("settings.seed.end-spike", endSpikeSeed);
-+        TimingsManager.hiddenConfigs.add("settings.seed");
-+        TimingsManager.hiddenConfigs.add("settings.seed.end-spike");
++        if (!TimingsManager.hiddenConfigs.contains("settings.seed")) TimingsManager.hiddenConfigs.add("settings.seed");
++        if (!TimingsManager.hiddenConfigs.contains("settings.seed.end-spike")) TimingsManager.hiddenConfigs.add("settings.seed.end-spike");
 +    }
- }
++
+     public static String timingsUrl = "https://timings.pl3x.net";
+     private static void timingsSettings() {
+         timingsUrl = getString("settings.timings.url", timingsUrl);
