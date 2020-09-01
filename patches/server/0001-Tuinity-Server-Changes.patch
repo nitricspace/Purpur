@@ -4307,6 +4307,21 @@ index 1cb8ba7cd..269efe42b 100644
          return this.a(this.b(oclass, axisalignedbb, null), pathfindertargetcondition, entityliving, d0, d1, d2); // Paper - decompile fix
      }
  
+diff --git a/src/main/java/net/minecraft/server/LightEngineGraphSection.java b/src/main/java/net/minecraft/server/LightEngineGraphSection.java
+index 13d067f48..04afd7f28 100644
+--- a/src/main/java/net/minecraft/server/LightEngineGraphSection.java
++++ b/src/main/java/net/minecraft/server/LightEngineGraphSection.java
+@@ -74,8 +74,10 @@ public abstract class LightEngineGraphSection extends LightEngineGraph {
+         return i == Long.MAX_VALUE ? this.b(j) : k + 1;
+     }
+ 
++    public final int getSource(long coordinate) { return this.b(coordinate); } // Tuinity - OBFHELPER
+     protected abstract int b(long i);
+ 
++    public final void update(long coordinate, int level, boolean flag) { this.b(coordinate, level, flag); } // Tuinity - OBFHELPER
+     public void b(long i, int j, boolean flag) {
+         this.a(Long.MAX_VALUE, i, j, flag);
+     }
 diff --git a/src/main/java/net/minecraft/server/LightEngineStorage.java b/src/main/java/net/minecraft/server/LightEngineStorage.java
 index b98e60772..e0bbfe142 100644
 --- a/src/main/java/net/minecraft/server/LightEngineStorage.java
@@ -4365,10 +4380,26 @@ index ff74be145..653ba0f1d 100644
          0, 2, 60L, TimeUnit.SECONDS,
          new LinkedBlockingQueue<Runnable>(),
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index bbe793ca3..615a71a78 100644
+index bbe793ca3..65aa3bd9b 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -985,7 +985,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -155,6 +155,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+     public org.bukkit.command.RemoteConsoleCommandSender remoteConsole;
+     //public ConsoleReader reader; // Paper
+     public static int currentTick = 0; // Paper - Further improve tick loop
++    public static long currentTickLong = 0L; // Tuinity
+     public java.util.Queue<Runnable> processQueue = new java.util.concurrent.ConcurrentLinkedQueue<Runnable>();
+     public int autosavePeriod;
+     public boolean serverAutoSave = false; // Paper
+@@ -971,6 +972,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+                         this.lastOverloadTime = this.nextTick;
+                     }
+ 
++                    ++MinecraftServer.currentTickLong; // Tuinity
+                     if ( ++MinecraftServer.currentTick % SAMPLE_INTERVAL == 0 )
+                     {
+                         final long diff = curTime - tickSection;
+@@ -985,7 +987,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
                          // Paper end
                          tickSection = curTime;
                      }
@@ -4377,7 +4408,7 @@ index bbe793ca3..615a71a78 100644
                      // Spigot end
  
                      //MinecraftServer.currentTick = (int) (System.currentTimeMillis() / 50); // CraftBukkit // Paper - don't overwrite current tick time
-@@ -1078,6 +1078,76 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1078,6 +1080,76 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
      }
      // Paper end
  
@@ -4454,7 +4485,7 @@ index bbe793ca3..615a71a78 100644
      private void executeModerately() {
          this.executeAll();
          java.util.concurrent.locks.LockSupport.parkNanos("executing tasks", 1000L);
-@@ -1091,22 +1161,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1091,22 +1163,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
          });
      }
  
@@ -4478,7 +4509,7 @@ index bbe793ca3..615a71a78 100644
  
      @Override
      protected TickTask postToMainThread(Runnable runnable) {
-@@ -1133,6 +1188,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1133,6 +1190,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
  
      private boolean ba() {
          if (super.executeNext()) {
@@ -4486,7 +4517,7 @@ index bbe793ca3..615a71a78 100644
              return true;
          } else {
              if (this.canSleepForTick()) {
-@@ -1200,7 +1256,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1200,7 +1258,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
          // Paper start - move oversleep into full server tick
          isOversleep = true;MinecraftTimings.serverOversleep.startTiming();
          this.awaitTasks(() -> {
@@ -4495,7 +4526,7 @@ index bbe793ca3..615a71a78 100644
              return !this.canOversleep();
          });
          isOversleep = false;MinecraftTimings.serverOversleep.stopTiming();
-@@ -1265,6 +1321,8 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1265,6 +1323,8 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
          }
          // Paper end
  
@@ -4504,7 +4535,7 @@ index bbe793ca3..615a71a78 100644
          // Paper start
          long endTime = System.nanoTime();
          long remaining = (TICK_TIME - (endTime - lastTick)) - catchupTime;
-@@ -1291,16 +1349,16 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1291,16 +1351,16 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
      }
  
      protected void b(BooleanSupplier booleansupplier) {
@@ -4524,7 +4555,7 @@ index bbe793ca3..615a71a78 100644
          this.methodProfiler.exitEnter("levels");
          Iterator iterator = this.getWorlds().iterator();
  
-@@ -1311,7 +1369,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1311,7 +1371,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
              processQueue.remove().run();
          }
          MinecraftTimings.processQueueTimer.stopTiming(); // Spigot
@@ -4533,7 +4564,7 @@ index bbe793ca3..615a71a78 100644
          MinecraftTimings.timeUpdateTimer.startTiming(); // Spigot // Paper
          // Send time updates to everyone, it will get the right time from the world the player is in.
          // Paper start - optimize time updates
-@@ -1353,11 +1411,12 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1353,11 +1413,12 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
              this.methodProfiler.enter("tick");
  
              try {
@@ -4548,7 +4579,7 @@ index bbe793ca3..615a71a78 100644
              } catch (Throwable throwable) {
                  // Spigot Start
                  CrashReport crashreport;
-@@ -1451,7 +1510,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1451,7 +1512,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
      }
  
      public String getServerModName() {
@@ -5116,7 +5147,7 @@ index fc6197dd5..e5bdf1044 100644
                  if (chunk != null) {
                      playerchunkmap.callbackExecutor.execute(() -> {
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index fcd3388d8..57c832ce3 100644
+index fcd3388d8..9e635bc05 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
 @@ -121,31 +121,28 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
@@ -5274,15 +5305,26 @@ index fcd3388d8..57c832ce3 100644
          if (k > PlayerChunkMap.GOLDEN_TICKET && j > PlayerChunkMap.GOLDEN_TICKET) {
              return playerchunk;
          } else {
-@@ -778,6 +834,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -778,7 +834,9 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
                      playerchunk.a(j);
                  } else {
                      playerchunk = new PlayerChunk(new ChunkCoordIntPair(i), j, this.lightEngine, this.p, this);
 +                    this.dataRegionManager.addChunk(playerchunk.location.x, playerchunk.location.z); // Tuinity
                  }
++                this.getVillagePlace().dequeueUnload(playerchunk.location.pair()); // Tuinity - unload POI data
  
                  this.updatingChunks.put(i, playerchunk);
-@@ -970,7 +1027,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+                 this.updatingChunksModified = true;
+@@ -904,7 +962,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+ 
+     }
+ 
+-    private static final double UNLOAD_QUEUE_RESIZE_FACTOR = 0.90; // Spigot // Paper - unload more
++    static final double UNLOAD_QUEUE_RESIZE_FACTOR = 0.90; // Spigot // Paper - unload more // Tuinity - private -> package private
+ 
+     protected void unloadChunks(BooleanSupplier booleansupplier) {
+         GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler();
+@@ -970,7 +1028,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
          }
  
          com.destroystokyo.paper.io.PaperFileIOThread.Holder.INSTANCE.scheduleSave(this.world, chunkPos.x, chunkPos.z,
@@ -5291,7 +5333,7 @@ index fcd3388d8..57c832ce3 100644
  
          if (!chunk.isNeedsSaving()) {
              return;
-@@ -1004,7 +1061,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1004,7 +1062,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
              asyncSaveData = ChunkRegionLoader.getAsyncSaveData(this.world, chunk);
          }
  
@@ -5300,15 +5342,16 @@ index fcd3388d8..57c832ce3 100644
              asyncSaveData, chunk);
  
          chunk.setLastSaved(this.world.getTime());
-@@ -1043,6 +1100,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1043,6 +1101,8 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
                      this.lightEngine.a(ichunkaccess.getPos());
                      this.lightEngine.queueUpdate();
                      this.worldLoadListener.a(ichunkaccess.getPos(), (ChunkStatus) null);
 +                    this.dataRegionManager.removeChunk(playerchunk.location.x, playerchunk.location.z); // Tuinity
++                    this.getVillagePlace().queueUnload(ichunkaccess.getPos().pair(), MinecraftServer.currentTickLong + 1); // Tuinity - unload POI data
                  }
  
              }
-@@ -1059,6 +1117,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1059,6 +1119,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
      }
  
      protected boolean b() {
@@ -5316,7 +5359,15 @@ index fcd3388d8..57c832ce3 100644
          if (!this.updatingChunksModified) {
              return false;
          } else {
-@@ -1246,7 +1305,10 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1134,6 +1195,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+ 
+                 this.getVillagePlace().loadInData(chunkcoordintpair, chunkHolder.poiData);
+                 chunkHolder.tasks.forEach(Runnable::run);
++                this.getVillagePlace().dequeueUnload(chunkcoordintpair.pair()); // Tuinity
+                 // Paper end
+ 
+                 if (chunkHolder.protoChunk != null) {try (Timing ignored2 = this.world.timings.chunkLoadLevelTimer.startTimingIfSync()) { // Paper start - timings // Paper - chunk is created async
+@@ -1246,7 +1308,10 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
              }
              // Paper end
              this.mailboxWorldGen.a(ChunkTaskQueueSorter.a(playerchunk, runnable));
@@ -5328,7 +5379,7 @@ index fcd3388d8..57c832ce3 100644
      }
  
      protected void c(ChunkCoordIntPair chunkcoordintpair) {
-@@ -1498,6 +1560,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1498,6 +1563,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
      }
  
      public void setViewDistance(int i) { // Paper - public
@@ -5336,7 +5387,7 @@ index fcd3388d8..57c832ce3 100644
          int j = MathHelper.clamp(i + 1, 3, 33); // Paper - diff on change, these make the lower view distance limit 2 and the upper 32
  
          if (j != this.viewDistance) {
-@@ -1511,6 +1574,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1511,6 +1577,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
  
      // Paper start - no-tick view distance
      public final void setNoTickViewDistance(int viewDistance) {
@@ -5344,7 +5395,28 @@ index fcd3388d8..57c832ce3 100644
          viewDistance = viewDistance == -1 ? -1 : MathHelper.clamp(viewDistance, 2, 32);
  
          this.noTickViewDistance = viewDistance;
-@@ -2037,23 +2101,20 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1626,7 +1693,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+         if (Thread.currentThread() != com.destroystokyo.paper.io.PaperFileIOThread.Holder.INSTANCE) {
+             com.destroystokyo.paper.io.PaperFileIOThread.Holder.INSTANCE.scheduleSave(
+                 this.world, chunkcoordintpair.x, chunkcoordintpair.z, null, nbttagcompound,
+-                com.destroystokyo.paper.io.IOUtil.getPriorityForCurrentThread());
++                com.destroystokyo.paper.io.PrioritizedTaskQueue.NORMAL_PRIORITY); // Tuinity - writes are async, no need for priority
+             return;
+         }
+         super.write(chunkcoordintpair, nbttagcompound);
+@@ -1710,6 +1777,11 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+         return chunkHolder == null ? null : chunkHolder.getAvailableChunkNow();
+     }
+     // Paper end
++    // Tuinity start
++    public PlayerChunk getUnloadingPlayerChunk(int chunkX, int chunkZ) {
++        return this.pendingUnload.get(ChunkCoordIntPair.pair(chunkX, chunkZ));
++    }
++    // Tuinity end
+ 
+ 
+     // Paper start - async io
+@@ -2037,23 +2109,20 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
      private final void processTrackQueue() {
          this.world.timings.tracker1.startTiming();
          try {
@@ -6509,20 +6581,81 @@ index 3382d678e..3b7894256 100644
          return (InputStream) this.f.wrap(inputstream);
      }
 diff --git a/src/main/java/net/minecraft/server/RegionFileSection.java b/src/main/java/net/minecraft/server/RegionFileSection.java
-index 04256a951..d9362b74f 100644
+index 04256a951..79a11d17a 100644
 --- a/src/main/java/net/minecraft/server/RegionFileSection.java
 +++ b/src/main/java/net/minecraft/server/RegionFileSection.java
-@@ -50,8 +50,8 @@ public class RegionFileSection<R> extends RegionFileCache implements AutoCloseab
+@@ -25,8 +25,8 @@ public class RegionFileSection<R> extends RegionFileCache implements AutoCloseab
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+     // Paper - nuke IOWorker
+-    private final Long2ObjectMap<Optional<R>> c = new Long2ObjectOpenHashMap();
+-    protected final LongLinkedOpenHashSet d = new LongLinkedOpenHashSet(); // Paper - private -> protected
++    private final Long2ObjectMap<Optional<R>> c = new Long2ObjectOpenHashMap(); protected final Long2ObjectMap<Optional<R>> getDataBySection() { return this.c; } // Tuinity - OBFHELPER
++    protected final LongLinkedOpenHashSet d = new LongLinkedOpenHashSet(); protected final LongLinkedOpenHashSet getDirtySections() { return this.d; } // Paper - private -> protected // Tuinity - OBFHELPER
+     private final Function<Runnable, Codec<R>> e;
+     private final Function<Runnable, R> f;
+     private final DataFixer g;
+@@ -50,8 +50,42 @@ public class RegionFileSection<R> extends RegionFileCache implements AutoCloseab
  
      }
  
 -    @Nullable
 -    protected Optional<R> c(long i) {
++    // Tuinity start - actually unload POI data
++    public void unloadData(long coordinate) {
++        ChunkCoordIntPair chunkPos = new ChunkCoordIntPair(coordinate);
++        this.writeDirtyData(chunkPos);
++
++        Long2ObjectMap<Optional<R>> data = this.getDataBySection();
++        int before = data.size();
++
++        for (int section = 0; section < 16; ++section) {
++            data.remove(SectionPosition.asLong(chunkPos.x, section, chunkPos.z));
++        }
++
++        if (before != data.size()) {
++            this.onUnload(coordinate);
++        }
++    }
++
++    protected void onUnload(long coordinate) {}
++
++    public boolean isEmpty(long coordinate) {
++        Long2ObjectMap<Optional<R>> data = this.getDataBySection();
++        int x = MCUtil.getCoordinateX(coordinate);
++        int z = MCUtil.getCoordinateZ(coordinate);
++        for (int section = 0; section < 16; ++section) {
++            Optional<R> optional = data.get(SectionPosition.asLong(x, section, z));
++            if (optional != null && optional.orElse(null) != null) {
++                return false;
++            }
++        }
++
++        return true;
++    }
++    // Tuinity end - actually unload POI data
++
 +    @Nullable protected Optional<R> getIfLoaded(long value) { return this.c(value); } // Tuinity - OBFHELPER
 +    @Nullable protected Optional<R> c(long i) { // Tuinity - OBFHELPER
          return (Optional) this.c.get(i);
      }
  
+@@ -150,6 +184,7 @@ public class RegionFileSection<R> extends RegionFileCache implements AutoCloseab
+                 });
+             }
+         }
++        if (this instanceof VillagePlace) { ((VillagePlace)this).queueUnload(chunkcoordintpair.pair(), MinecraftServer.currentTickLong + 1); } // Tuinity - unload POI data
+ 
+     }
+ 
+@@ -221,6 +256,7 @@ public class RegionFileSection<R> extends RegionFileCache implements AutoCloseab
+         return dynamic.get("DataVersion").asInt(1945);
+     }
+ 
++    public final void writeDirtyData(ChunkCoordIntPair chunkcoordintpair) { this.a(chunkcoordintpair); } // Tuinity - OBFHELPER
+     public void a(ChunkCoordIntPair chunkcoordintpair) {
+         if (!this.d.isEmpty()) {
+             for (int i = 0; i < 16; ++i) {
 diff --git a/src/main/java/net/minecraft/server/SensorNearestBed.java b/src/main/java/net/minecraft/server/SensorNearestBed.java
 index ad3609f2b..d3d28f97f 100644
 --- a/src/main/java/net/minecraft/server/SensorNearestBed.java
@@ -6907,10 +7040,158 @@ index 3048ba008..84858ba39 100644
          return this.x * this.x + this.y * this.y + this.z * this.z;
      }
 diff --git a/src/main/java/net/minecraft/server/VillagePlace.java b/src/main/java/net/minecraft/server/VillagePlace.java
-index b926cebd0..bd95db016 100644
+index b926cebd0..62dcd9a3c 100644
 --- a/src/main/java/net/minecraft/server/VillagePlace.java
 +++ b/src/main/java/net/minecraft/server/VillagePlace.java
-@@ -165,7 +165,7 @@ public class VillagePlace extends RegionFileSection<VillagePlaceSection> {
+@@ -4,6 +4,7 @@ import com.mojang.datafixers.DataFixer;
+ import com.mojang.datafixers.util.Pair;
+ import it.unimi.dsi.fastutil.longs.Long2ByteMap;
+ import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
++import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap; // Tuinity
+ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+ import it.unimi.dsi.fastutil.longs.LongSet;
+ import java.io.File;
+@@ -22,8 +23,8 @@ import java.util.stream.Stream;
+ 
+ public class VillagePlace extends RegionFileSection<VillagePlaceSection> {
+ 
+-    private final VillagePlace.a a = new VillagePlace.a();
+-    private final LongSet b = new LongOpenHashSet();
++    private final VillagePlace.a a = new VillagePlace.a(); private final VillagePlace.a getVillageDistanceTracker() { return this.a; } // Tuinity - OBFHELPER
++    private final LongSet b = new LongOpenHashSet(); private final LongSet getLoadedChunks() { return this.b; } // Tuinity - OBFHELPER
+ 
+     private final WorldServer world; // Paper
+ 
+@@ -34,9 +35,119 @@ public class VillagePlace extends RegionFileSection<VillagePlaceSection> {
+     public VillagePlace(File file, DataFixer datafixer, boolean flag, WorldServer world) {
+         super(file, VillagePlaceSection::a, VillagePlaceSection::new, datafixer, DataFixTypes.POI_CHUNK, flag);
+         this.world = world;
++        if (world == null) { throw new IllegalStateException("world must be non-null"); }// Tuinity - require non-null
+         // Paper end - add world parameter
+     }
+ 
++    // Tuinity start - actually unload POI data
++    private final java.util.TreeSet<QueuedUnload> queuedUnloads = new java.util.TreeSet<>();
++    private final Long2ObjectOpenHashMap<QueuedUnload> queuedUnloadsByCoordinate = new Long2ObjectOpenHashMap<>();
++
++    static final class QueuedUnload implements Comparable<QueuedUnload> {
++
++        private final long unloadTick;
++        private final long coordinate;
++
++        public QueuedUnload(long unloadTick, long coordinate) {
++            this.unloadTick = unloadTick;
++            this.coordinate = coordinate;
++        }
++
++        @Override
++        public int compareTo(QueuedUnload other) {
++            if (other.unloadTick == this.unloadTick) {
++                return Long.compare(this.coordinate, other.coordinate);
++            } else {
++                return Long.compare(this.unloadTick, other.unloadTick);
++            }
++        }
++
++        @Override
++        public int hashCode() {
++            int hash = 1;
++            hash = hash * 31 + Long.hashCode(this.unloadTick);
++            hash = hash * 31 + Long.hashCode(this.coordinate);
++            return hash;
++        }
++
++        @Override
++        public boolean equals(Object obj) {
++            if (obj == null || obj.getClass() != QueuedUnload.class) {
++                return false;
++            }
++            QueuedUnload other = (QueuedUnload)obj;
++            return other.unloadTick == this.unloadTick && other.coordinate == this.coordinate;
++        }
++    }
++
++    long determineDelay(long coordinate) {
++        if (this.isEmpty(coordinate)) {
++            return 60 * 20;
++        } else {
++            return 5 * 20;
++        }
++    }
++
++    public void queueUnload(long coordinate, long minTarget) {
++        com.tuinity.tuinity.util.TickThread.softEnsureTickThread("async poi unload queue");
++        QueuedUnload unload = new QueuedUnload(minTarget + this.determineDelay(coordinate), coordinate);
++        QueuedUnload existing = this.queuedUnloadsByCoordinate.put(coordinate, unload);
++        if (existing != null) {
++            this.queuedUnloads.remove(existing);
++        }
++        this.queuedUnloads.add(unload);
++    }
++
++    public void dequeueUnload(long coordinate) {
++        com.tuinity.tuinity.util.TickThread.softEnsureTickThread("async poi unload dequeue");
++        QueuedUnload unload = this.queuedUnloadsByCoordinate.remove(coordinate);
++        if (unload != null) {
++            this.queuedUnloads.remove(unload);
++        }
++    }
++
++    public void pollUnloads(BooleanSupplier canSleepForTick) {
++        com.tuinity.tuinity.util.TickThread.softEnsureTickThread("async poi unload");
++        long currentTick = MinecraftServer.currentTickLong;
++        ChunkProviderServer chunkProvider = this.world.getChunkProvider();
++        PlayerChunkMap playerChunkMap = chunkProvider.playerChunkMap;
++        // copied target determination from PlayerChunkMap
++        int target = Math.min(this.queuedUnloads.size() - 100,  (int) (this.queuedUnloads.size() * PlayerChunkMap.UNLOAD_QUEUE_RESIZE_FACTOR)); // Paper - Make more aggressive
++        for (java.util.Iterator<QueuedUnload> iterator = this.queuedUnloads.iterator();
++             iterator.hasNext() && (this.queuedUnloads.size() > target || canSleepForTick.getAsBoolean());) {
++            QueuedUnload unload = iterator.next();
++            if (unload.unloadTick > currentTick) {
++                break;
++            }
++
++            long coordinate = unload.coordinate;
++
++            iterator.remove();
++            this.queuedUnloadsByCoordinate.remove(coordinate);
++
++            if (playerChunkMap.getUnloadingPlayerChunk(MCUtil.getCoordinateX(coordinate), MCUtil.getCoordinateZ(coordinate)) != null
++                || playerChunkMap.getUpdatingChunk(coordinate) != null) {
++                continue;
++            }
++
++            this.unloadData(coordinate);
++        }
++    }
++
++    @Override
++    public void unloadData(long coordinate) {
++        com.tuinity.tuinity.util.TickThread.softEnsureTickThread("async unloading poi data");
++        super.unloadData(coordinate);
++    }
++
++    @Override
++    protected void onUnload(long coordinate) {
++        com.tuinity.tuinity.util.TickThread.softEnsureTickThread("async poi unload callback");
++        this.getLoadedChunks().remove(coordinate);
++        this.getVillageDistanceTracker().update(coordinate, this.getVillageDistanceTracker().getSource(coordinate), false);
++    }
++    // Tuinity end - actually unload POI data
++
+     public void a(BlockPosition blockposition, VillagePlaceType villageplacetype) {
+         ((VillagePlaceSection) this.e(SectionPosition.a(blockposition).s())).a(blockposition, villageplacetype);
+     }
+@@ -157,7 +268,7 @@ public class VillagePlace extends RegionFileSection<VillagePlaceSection> {
+             super.a(booleansupplier);
+         } else {
+             //super.a(booleansupplier); // re-implement below
+-            while (!((RegionFileSection)this).d.isEmpty() && booleansupplier.getAsBoolean()) {
++            while (!((RegionFileSection)this).d.isEmpty() && booleansupplier.getAsBoolean() && !this.world.isSavingDisabled()) { // Tuinity - unload POI data - don't write to disk if saving is disabled
+                 ChunkCoordIntPair chunkcoordintpair = SectionPosition.a(((RegionFileSection)this).d.firstLong()).r();
+ 
+                 NBTTagCompound data;
+@@ -165,9 +276,14 @@ public class VillagePlace extends RegionFileSection<VillagePlaceSection> {
                      data = this.getData(chunkcoordintpair);
                  }
                  com.destroystokyo.paper.io.PaperFileIOThread.Holder.INSTANCE.scheduleSave(this.world,
@@ -6918,8 +7199,24 @@ index b926cebd0..bd95db016 100644
 +                    chunkcoordintpair.x, chunkcoordintpair.z, data, null, com.destroystokyo.paper.io.PrioritizedTaskQueue.NORMAL_PRIORITY); // Tuinity - use normal priority
              }
          }
++        // Tuinity start - unload POI data
++        if (!this.world.isSavingDisabled()) { // don't write to disk if saving is disabled
++            this.pollUnloads(booleansupplier);
++        }
++        // Tuinity end - unload POI data
          // Paper end
-@@ -309,6 +309,7 @@ public class VillagePlace extends RegionFileSection<VillagePlaceSection> {
+         this.a.a();
+     }
+@@ -290,7 +406,7 @@ public class VillagePlace extends RegionFileSection<VillagePlaceSection> {
+         if (this.world != null && Thread.currentThread() != com.destroystokyo.paper.io.PaperFileIOThread.Holder.INSTANCE) {
+             com.destroystokyo.paper.io.PaperFileIOThread.Holder.INSTANCE.scheduleSave(
+                 this.world, chunkcoordintpair.x, chunkcoordintpair.z, nbttagcompound, null,
+-                com.destroystokyo.paper.io.IOUtil.getPriorityForCurrentThread());
++                com.destroystokyo.paper.io.PrioritizedTaskQueue.NORMAL_PRIORITY); // Tuinity - writes are async, no need for priority
+             return;
+         }
+         super.write(chunkcoordintpair, nbttagcompound);
+@@ -309,6 +425,7 @@ public class VillagePlace extends RegionFileSection<VillagePlaceSection> {
              this.d = predicate;
          }
  
