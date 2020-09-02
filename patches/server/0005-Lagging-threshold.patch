@@ -5,10 +5,10 @@ Subject: [PATCH] Lagging threshold
 
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index ba731edd3..c76873722 100644
+index 1878a10bad..6082e09f29 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -166,6 +166,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -167,6 +167,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
      public static final int TICK_TIME = 1000000000 / TPS;
      private static final int SAMPLE_INTERVAL = 20; // Paper
      public final double[] recentTps = new double[ 3 ];
@@ -16,7 +16,7 @@ index ba731edd3..c76873722 100644
      public final SlackActivityAccountant slackActivityAccountant = new SlackActivityAccountant();
      // Spigot end
  
-@@ -983,6 +984,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -985,6 +986,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
                          recentTps[1] = tps5.getAverage();
                          recentTps[2] = tps15.getAverage();
                          // Paper end
@@ -25,7 +25,7 @@ index ba731edd3..c76873722 100644
                      }
                      // Tuinity - replace logic
 diff --git a/src/main/java/net/pl3x/purpur/PurpurConfig.java b/src/main/java/net/pl3x/purpur/PurpurConfig.java
-index 1d00832bf..a0aec44d4 100644
+index 1d00832bff..a0aec44d45 100644
 --- a/src/main/java/net/pl3x/purpur/PurpurConfig.java
 +++ b/src/main/java/net/pl3x/purpur/PurpurConfig.java
 @@ -127,4 +127,14 @@ public class PurpurConfig {
@@ -44,7 +44,7 @@ index 1d00832bf..a0aec44d4 100644
 +    }
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 7f5493a6d..c7b0de60d 100644
+index 7f5493a6d4..c7b0de60d0 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -2404,4 +2404,11 @@ public final class CraftServer implements Server {
