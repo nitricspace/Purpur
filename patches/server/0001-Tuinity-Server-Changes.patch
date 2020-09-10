@@ -422,10 +422,10 @@ index 000000000..d7eeaf28f
 +}
 diff --git a/src/main/java/com/tuinity/tuinity/chunk/SingleThreadChunkRegionManager.java b/src/main/java/com/tuinity/tuinity/chunk/SingleThreadChunkRegionManager.java
 new file mode 100644
-index 000000000..f599725e1
+index 000000000..b57006d04
 --- /dev/null
 +++ b/src/main/java/com/tuinity/tuinity/chunk/SingleThreadChunkRegionManager.java
-@@ -0,0 +1,329 @@
+@@ -0,0 +1,349 @@
 +package com.tuinity.tuinity.chunk;
 +
 +import co.aikar.timings.MinecraftTimings;
@@ -435,6 +435,7 @@ index 000000000..f599725e1
 +import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 +import it.unimi.dsi.fastutil.objects.ReferenceLinkedOpenHashSet;
 +import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
++import net.minecraft.server.ChunkCoordIntPair;
 +import net.minecraft.server.MCUtil;
 +import net.minecraft.server.WorldServer;
 +import java.util.ArrayList;
@@ -592,6 +593,7 @@ index 000000000..f599725e1
 +    protected void recalculateRegion(final Region<T> region) {
 +        this.regionRecalculateTimings.startTiming();
 +        try {
++            region.markedForRecalc = false;
 +            // clear unused regions
 +            for (final Iterator<RegionSection<T>> iterator = region.deadSections.iterator(); iterator.hasNext(); ) {
 +                final RegionSection<T> deadRegion = iterator.next();
@@ -678,7 +680,7 @@ index 000000000..f599725e1
 +
 +        protected void markRegionDead(final RegionSection<T> section) {
 +            this.deadSections.add(section);
-+            if (!this.markedForRecalc && this.sections.size() >= this.regionManager.minSectionRecalcCount && this.getDeadSectionPercent() >= this.regionManager.maxDeadRegionPercent) {
++            if (!this.markedForRecalc && (this.sections.size() >= this.regionManager.minSectionRecalcCount || this.sections.size() == this.deadSections.size()) && this.getDeadSectionPercent() >= this.regionManager.maxDeadRegionPercent) {
 +                this.regionManager.addToRecalcQueue(this);
 +                this.markedForRecalc = true;
 +            }
@@ -731,9 +733,16 @@ index 000000000..f599725e1
 +            this.data.put(key, data);
 +        }
 +
++        private static long getChunkIndex(final int chunkX, final int chunkZ) {
++            return 1L << ((chunkX & (REGION_CHUNK_SIZE - 1)) | ((chunkZ & (REGION_CHUNK_SIZE - 1)) << REGION_CHUNK_SIZE_SHIFT));
++        }
++
 +        protected void addChunk(final int chunkX, final int chunkZ) {
 +            final long bitset = this.chunksBitset;
-+            this.chunksBitset = bitset | (1L << ((chunkX & (REGION_CHUNK_SIZE - 1)) | ((chunkZ & (REGION_CHUNK_SIZE - 1)) << REGION_CHUNK_SIZE_SHIFT)));
++            final long after = this.chunksBitset = bitset | getChunkIndex(chunkX, chunkZ);
++            if (after == bitset) {
++                throw new IllegalStateException("Cannot add a chunk to a region which already has the chunk! RegionSection: " + this + ", global chunk: " + new ChunkCoordIntPair(chunkX, chunkZ).toString());
++            }
 +            if (bitset != 0L) {
 +                return;
 +            }
@@ -741,11 +750,22 @@ index 000000000..f599725e1
 +        }
 +
 +        protected void removeChunk(final int chunkX, final int chunkZ) {
-+            final long bitset = this.chunksBitset |= ~(1L << ((chunkX & (REGION_CHUNK_SIZE - 1)) | ((chunkZ & (REGION_CHUNK_SIZE - 1)) << REGION_CHUNK_SIZE_SHIFT)));
++            final long before = this.chunksBitset;
++            final long bitset = this.chunksBitset = before & ~getChunkIndex(chunkX, chunkZ);
++            if (before == bitset) {
++                throw new IllegalStateException("Cannot remove a chunk from a region which does not have that chunk! RegionSection: " + this + ", global chunk: " + new ChunkCoordIntPair(chunkX, chunkZ).toString());
++            }
 +            if (bitset != 0L) {
 +                return;
 +            }
 +            this.region.markRegionDead(this);
++        }
++
++        @Override
++        public String toString() {
++            return "RegionSection{" +
++                    "regionCoordinate=" + new ChunkCoordIntPair(this.regionCoordinate).toString() +
++                    '}';
 +        }
 +    }
 +
@@ -1165,10 +1185,10 @@ index 000000000..08ed24325
 \ No newline at end of file
 diff --git a/src/main/java/com/tuinity/tuinity/util/maplist/IteratorSafeOrderedReferenceSet.java b/src/main/java/com/tuinity/tuinity/util/maplist/IteratorSafeOrderedReferenceSet.java
 new file mode 100644
-index 000000000..b0f1e21e6
+index 000000000..67fb1b533
 --- /dev/null
 +++ b/src/main/java/com/tuinity/tuinity/util/maplist/IteratorSafeOrderedReferenceSet.java
-@@ -0,0 +1,271 @@
+@@ -0,0 +1,274 @@
 +package com.tuinity.tuinity.util.maplist;
 +
 +import it.unimi.dsi.fastutil.objects.Reference2IntLinkedOpenHashMap;
@@ -1267,6 +1287,9 @@ index 000000000..b0f1e21e6
 +                this.firstInvalidIndex = index;
 +            }
 +            this.listElements[index] = null;
++            if (this.iteratorCount == 0 && this.getFragFactor() >= this.maxFragFactor) {
++                this.defrag();
++            }
 +            return true;
 +        } else {
 +            return this.pendingAdditions.remove(element);
@@ -3656,7 +3679,7 @@ index 550232cb3..229c3b0f0 100644
                      throwable = throwable1;
                      throw throwable1;
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 45e7e3089..f8a8d63d5 100644
+index 1ee01486f..f55e4e729 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
 @@ -137,7 +137,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
@@ -3967,7 +3990,7 @@ index 45e7e3089..f8a8d63d5 100644
      public static double c(Vec3D vec3d) {
          return vec3d.x * vec3d.x + vec3d.z * vec3d.z;
      }
-@@ -1351,6 +1582,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1352,6 +1583,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return d3 * d3 + d4 * d4 + d5 * d5;
      }
  
@@ -3975,7 +3998,7 @@ index 45e7e3089..f8a8d63d5 100644
      public double h(Entity entity) {
          return this.e(entity.getPositionVector());
      }
-@@ -1923,9 +2155,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1924,9 +2156,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              float f1 = this.size.width * 0.8F;
              AxisAlignedBB axisalignedbb = AxisAlignedBB.g((double) f1, 0.10000000149011612D, (double) f1).d(this.locX(), this.getHeadY(), this.locZ());
  
@@ -3987,7 +4010,7 @@ index 45e7e3089..f8a8d63d5 100644
          }
      }
  
-@@ -1933,11 +2165,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1934,11 +2166,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return EnumInteractionResult.PASS;
      }
  
@@ -4003,7 +4026,7 @@ index 45e7e3089..f8a8d63d5 100644
          return false;
      }
  
-@@ -3274,12 +3508,16 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -3275,12 +3509,16 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return this.locBlock;
      }
  
@@ -4020,7 +4043,7 @@ index 45e7e3089..f8a8d63d5 100644
      }
  
      public void setMot(double d0, double d1, double d2) {
-@@ -3334,7 +3572,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -3335,7 +3573,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          }
          // Paper end
          if (this.loc.x != d0 || this.loc.y != d1 || this.loc.z != d2) {
@@ -4407,7 +4430,7 @@ index ff74be145..653ba0f1d 100644
          0, 2, 60L, TimeUnit.SECONDS,
          new LinkedBlockingQueue<Runnable>(),
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index bbe793ca3..65aa3bd9b 100644
+index 65e8dc340..d255be60b 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -155,6 +155,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
@@ -5196,7 +5219,7 @@ index fc6197dd5..e5bdf1044 100644
                  if (chunk != null) {
                      playerchunkmap.callbackExecutor.execute(() -> {
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index fcd3388d8..9e635bc05 100644
+index fcd3388d8..65ff0db14 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
 @@ -121,31 +121,28 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
@@ -5391,16 +5414,27 @@ index fcd3388d8..9e635bc05 100644
              asyncSaveData, chunk);
  
          chunk.setLastSaved(this.world.getTime());
-@@ -1043,6 +1101,8 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
-                     this.lightEngine.a(ichunkaccess.getPos());
+@@ -1020,7 +1078,9 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+             if (completablefuture1 != completablefuture) {
+                 this.a(i, playerchunk);
+             } else {
+-                if (this.pendingUnload.remove(i, playerchunk) && ichunkaccess != null) {
++                // Tuinity start
++                boolean removed;
++                if ((removed = this.pendingUnload.remove(i, playerchunk)) && ichunkaccess != null) { // Tuinity end
+                     if (ichunkaccess instanceof Chunk) {
+                         ((Chunk) ichunkaccess).setLoaded(false);
+                     }
+@@ -1044,6 +1104,8 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
                      this.lightEngine.queueUpdate();
                      this.worldLoadListener.a(ichunkaccess.getPos(), (ChunkStatus) null);
-+                    this.dataRegionManager.removeChunk(playerchunk.location.x, playerchunk.location.z); // Tuinity
-+                    this.getVillagePlace().queueUnload(ichunkaccess.getPos().pair(), MinecraftServer.currentTickLong + 1); // Tuinity - unload POI data
                  }
++                if (removed) this.dataRegionManager.removeChunk(playerchunk.location.x, playerchunk.location.z); // Tuinity
++                if (removed) this.getVillagePlace().queueUnload(playerchunk.location.pair(), MinecraftServer.currentTickLong + 1); // Tuinity - unload POI data
  
              }
-@@ -1059,6 +1119,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+         };
+@@ -1059,6 +1121,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
      }
  
      protected boolean b() {
@@ -5408,7 +5442,7 @@ index fcd3388d8..9e635bc05 100644
          if (!this.updatingChunksModified) {
              return false;
          } else {
-@@ -1134,6 +1195,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1134,6 +1197,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
  
                  this.getVillagePlace().loadInData(chunkcoordintpair, chunkHolder.poiData);
                  chunkHolder.tasks.forEach(Runnable::run);
@@ -5416,7 +5450,7 @@ index fcd3388d8..9e635bc05 100644
                  // Paper end
  
                  if (chunkHolder.protoChunk != null) {try (Timing ignored2 = this.world.timings.chunkLoadLevelTimer.startTimingIfSync()) { // Paper start - timings // Paper - chunk is created async
-@@ -1246,7 +1308,10 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1246,7 +1310,10 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
              }
              // Paper end
              this.mailboxWorldGen.a(ChunkTaskQueueSorter.a(playerchunk, runnable));
@@ -5428,7 +5462,7 @@ index fcd3388d8..9e635bc05 100644
      }
  
      protected void c(ChunkCoordIntPair chunkcoordintpair) {
-@@ -1498,6 +1563,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1498,6 +1565,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
      }
  
      public void setViewDistance(int i) { // Paper - public
@@ -5436,7 +5470,7 @@ index fcd3388d8..9e635bc05 100644
          int j = MathHelper.clamp(i + 1, 3, 33); // Paper - diff on change, these make the lower view distance limit 2 and the upper 32
  
          if (j != this.viewDistance) {
-@@ -1511,6 +1577,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1511,6 +1579,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
  
      // Paper start - no-tick view distance
      public final void setNoTickViewDistance(int viewDistance) {
@@ -5444,7 +5478,7 @@ index fcd3388d8..9e635bc05 100644
          viewDistance = viewDistance == -1 ? -1 : MathHelper.clamp(viewDistance, 2, 32);
  
          this.noTickViewDistance = viewDistance;
-@@ -1626,7 +1693,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1626,7 +1695,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
          if (Thread.currentThread() != com.destroystokyo.paper.io.PaperFileIOThread.Holder.INSTANCE) {
              com.destroystokyo.paper.io.PaperFileIOThread.Holder.INSTANCE.scheduleSave(
                  this.world, chunkcoordintpair.x, chunkcoordintpair.z, null, nbttagcompound,
@@ -5453,7 +5487,7 @@ index fcd3388d8..9e635bc05 100644
              return;
          }
          super.write(chunkcoordintpair, nbttagcompound);
-@@ -1710,6 +1777,11 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -1710,6 +1779,11 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
          return chunkHolder == null ? null : chunkHolder.getAvailableChunkNow();
      }
      // Paper end
@@ -5465,7 +5499,7 @@ index fcd3388d8..9e635bc05 100644
  
  
      // Paper start - async io
-@@ -2037,23 +2109,20 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+@@ -2037,23 +2111,20 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
      private final void processTrackQueue() {
          this.world.timings.tracker1.startTiming();
          try {
@@ -5500,7 +5534,7 @@ index fcd3388d8..9e635bc05 100644
      // Paper end - optimised tracker
  
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index e0c3eab9a..f0d44a5fe 100644
+index b067f3b70..602ed9aaa 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
 @@ -326,19 +326,24 @@ public class PlayerConnection implements PacketListenerPlayIn {
@@ -5653,7 +5687,7 @@ index 7ea293f38..e698dd226 100644
              });
              throw CancelledPacketHandleException.INSTANCE;
 diff --git a/src/main/java/net/minecraft/server/PlayerInteractManager.java b/src/main/java/net/minecraft/server/PlayerInteractManager.java
-index 69b6518ac..b0388127a 100644
+index 6d192b274..f5de49e3e 100644
 --- a/src/main/java/net/minecraft/server/PlayerInteractManager.java
 +++ b/src/main/java/net/minecraft/server/PlayerInteractManager.java
 @@ -21,14 +21,29 @@ public class PlayerInteractManager {
@@ -9133,7 +9167,7 @@ index 0f89e7768..f24d42345 100644
  
      public void setFlag(int flag) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
-index bbded5671..980890153 100644
+index 7591159c2..e5c3e5765 100644
 --- a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
 +++ b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
 @@ -44,7 +44,7 @@ public class CraftBlockData implements BlockData {
@@ -9146,7 +9180,7 @@ index bbded5671..980890153 100644
  
      public IBlockData getState() {
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index b1fdc5737..f1710a53f 100644
+index 6ceb2d50c..407c03408 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -501,27 +501,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
