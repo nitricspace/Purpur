@@ -5,14 +5,13 @@ Subject: [PATCH] Lagging threshold
 
 
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index bfe84236..3695ed01 100644
+index bfe84236..2c25ccde 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
-@@ -1787,4 +1787,14 @@ public final class Bukkit {
+@@ -1787,4 +1787,12 @@ public final class Bukkit {
      public static Server.Spigot spigot() {
          return server.spigot();
      }
-+
 +    /**
 +     * Check if server is lagging according to laggy threshold setting
 +     *
@@ -21,7 +20,6 @@ index bfe84236..3695ed01 100644
 +    public static boolean isLagging() {
 +        return server.isLagging();
 +    }
-+    // Purpur end
  }
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
 index fdceafc7..b7e1b082 100644

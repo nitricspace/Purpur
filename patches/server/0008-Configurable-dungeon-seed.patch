@@ -5,7 +5,7 @@ Subject: [PATCH] Configurable dungeon seed
 
 
 diff --git a/src/main/java/net/minecraft/server/WorldGenDungeons.java b/src/main/java/net/minecraft/server/WorldGenDungeons.java
-index 07f7b69f..6aa1626f 100644
+index 07f7b69fe..6aa1626f3 100644
 --- a/src/main/java/net/minecraft/server/WorldGenDungeons.java
 +++ b/src/main/java/net/minecraft/server/WorldGenDungeons.java
 @@ -11,12 +11,21 @@ public class WorldGenDungeons extends WorldGenerator<WorldGenFeatureEmptyConfigu
@@ -31,12 +31,12 @@ index 07f7b69f..6aa1626f 100644
          int i = random.nextInt(2) + 2;
          int j = -i - 1;
 diff --git a/src/main/java/net/pl3x/purpur/PurpurConfig.java b/src/main/java/net/pl3x/purpur/PurpurConfig.java
-index ed16f6f3..74e9791d 100644
+index d1745e7b9..d633b4639 100644
 --- a/src/main/java/net/pl3x/purpur/PurpurConfig.java
 +++ b/src/main/java/net/pl3x/purpur/PurpurConfig.java
-@@ -130,10 +130,13 @@ public class PurpurConfig {
+@@ -129,10 +129,13 @@ public class PurpurConfig {
+         return config.getString(path, config.getString(path));
      }
- 
  
 +    public static int dungeonSeed = -1;
      public static int endSpikeSeed = -1;

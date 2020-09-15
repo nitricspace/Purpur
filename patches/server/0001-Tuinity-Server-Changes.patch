@@ -5,18 +5,17 @@ Subject: [PATCH] Tuinity Server Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index d018f900d..4f45b8158 100644
+index add3a9c1a..5e25ae55e 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,11 +1,11 @@
--<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
      <modelVersion>4.0.0</modelVersion>
 -    <artifactId>paper</artifactId>
 +    <artifactId>tuinity</artifactId>
      <packaging>jar</packaging>
-     <version>1.16.2-R0.1-SNAPSHOT</version>
+     <version>1.16.3-R0.1-SNAPSHOT</version>
 -    <name>Paper</name>
 -    <url>https://papermc.io</url>
 +    <name>Tuinity-Server</name>
@@ -45,7 +44,7 @@ index d018f900d..4f45b8158 100644
              <version>${project.version}</version>
              <scope>compile</scope>
          </dependency>
-@@ -164,15 +164,15 @@
+@@ -165,15 +165,15 @@
  
      <!-- This builds a completely 'ready to start' jar with all dependencies inside -->
      <build>
@@ -65,7 +64,7 @@ index d018f900d..4f45b8158 100644
                  </configuration>
                  <executions>
 diff --git a/src/main/java/co/aikar/timings/MinecraftTimings.java b/src/main/java/co/aikar/timings/MinecraftTimings.java
-index dd0722397..85b25eace 100644
+index 884b59d47..68ab5ccb2 100644
 --- a/src/main/java/co/aikar/timings/MinecraftTimings.java
 +++ b/src/main/java/co/aikar/timings/MinecraftTimings.java
 @@ -43,6 +43,9 @@ public final class MinecraftTimings {
@@ -207,6 +206,88 @@ index e7624948e..77df68888 100644
          // good thing this is only used in debug reports // TODO check on update
          int ret = 0;
  
+diff --git a/src/main/java/com/mojang/brigadier/CommandDispatcher.java b/src/main/java/com/mojang/brigadier/CommandDispatcher.java
+index 103576715..e8fdbe7b8 100644
+--- a/src/main/java/com/mojang/brigadier/CommandDispatcher.java
++++ b/src/main/java/com/mojang/brigadier/CommandDispatcher.java
+@@ -590,10 +590,11 @@ public class CommandDispatcher<S> {
+         final String truncatedInput = fullInput.substring(0, cursor);
+         @SuppressWarnings("unchecked") final CompletableFuture<Suggestions>[] futures = new CompletableFuture[parent.getChildren().size()];
+         int i = 0;
++        final String remainingLower = truncatedInput.substring(start).toLowerCase(); // Tuinity
+         for (final CommandNode<S> node : parent.getChildren()) {
+             CompletableFuture<Suggestions> future = Suggestions.empty();
+             try {
+-                future = node.listSuggestions(context.build(truncatedInput), new SuggestionsBuilder(truncatedInput, start));
++                future = node.listSuggestions(context.build(truncatedInput), new SuggestionsBuilder(truncatedInput, start, remainingLower)); // Tuinity
+             } catch (final CommandSyntaxException ignored) {
+             }
+             futures[i++] = future;
+diff --git a/src/main/java/com/mojang/brigadier/arguments/BoolArgumentType.java b/src/main/java/com/mojang/brigadier/arguments/BoolArgumentType.java
+index cb993ca10..849686f7b 100644
+--- a/src/main/java/com/mojang/brigadier/arguments/BoolArgumentType.java
++++ b/src/main/java/com/mojang/brigadier/arguments/BoolArgumentType.java
+@@ -34,10 +34,10 @@ public class BoolArgumentType implements ArgumentType<Boolean> {
+ 
+     @Override
+     public <S> CompletableFuture<Suggestions> listSuggestions(final CommandContext<S> context, final SuggestionsBuilder builder) {
+-        if ("true".startsWith(builder.getRemaining().toLowerCase())) {
++        if ("true".startsWith(builder.getRemainingLowercase())) { // Tuinity
+             builder.suggest("true");
+         }
+-        if ("false".startsWith(builder.getRemaining().toLowerCase())) {
++        if ("false".startsWith(builder.getRemainingLowercase())) { // Tuinity
+             builder.suggest("false");
+         }
+         return builder.buildFuture();
+diff --git a/src/main/java/com/mojang/brigadier/suggestion/SuggestionsBuilder.java b/src/main/java/com/mojang/brigadier/suggestion/SuggestionsBuilder.java
+index bc0024adb..0343f6663 100644
+--- a/src/main/java/com/mojang/brigadier/suggestion/SuggestionsBuilder.java
++++ b/src/main/java/com/mojang/brigadier/suggestion/SuggestionsBuilder.java
+@@ -14,9 +14,16 @@ public class SuggestionsBuilder {
+     private final String input;
+     private final int start;
+     private final String remaining;
++    private String remainingLowercase; public final String getRemainingLowercase() { return this.remainingLowercase == null ? this.remainingLowercase = this.remaining.toLowerCase() : this.remainingLowercase; } // Tuinity
+     private final List<Suggestion> result = new ArrayList<>();
+ 
+     public SuggestionsBuilder(final String input, final int start) {
++        // Tuinity start
++        this(input, start, null);
++    }
++    public SuggestionsBuilder(final String input, final int start, final String remainingLowercase) {
++        this.remainingLowercase = remainingLowercase;
++        // Tuinity end
+         this.input = input;
+         this.start = start;
+         this.remaining = input.substring(start);
+diff --git a/src/main/java/com/mojang/brigadier/tree/LiteralCommandNode.java b/src/main/java/com/mojang/brigadier/tree/LiteralCommandNode.java
+index 772057879..e5db29d4c 100644
+--- a/src/main/java/com/mojang/brigadier/tree/LiteralCommandNode.java
++++ b/src/main/java/com/mojang/brigadier/tree/LiteralCommandNode.java
+@@ -20,11 +20,11 @@ import java.util.concurrent.CompletableFuture;
+ import java.util.function.Predicate;
+ 
+ public class LiteralCommandNode<S> extends CommandNode<S> {
+-    private final String literal;
++    private final String literal; private final String literalLower; // Tuinity
+ 
+     public LiteralCommandNode(final String literal, final Command<S> command, final Predicate<S> requirement, final CommandNode<S> redirect, final RedirectModifier<S> modifier, final boolean forks) {
+         super(command, requirement, redirect, modifier, forks);
+-        this.literal = literal;
++        this.literal = literal; this.literalLower = this.literal.toLowerCase(); // Tuinity
+     }
+ 
+     public String getLiteral() {
+@@ -66,7 +66,7 @@ public class LiteralCommandNode<S> extends CommandNode<S> {
+ 
+     @Override
+     public CompletableFuture<Suggestions> listSuggestions(final CommandContext<S> context, final SuggestionsBuilder builder) {
+-        if (literal.toLowerCase().startsWith(builder.getRemaining().toLowerCase())) {
++        if (literalLower.startsWith(builder.getRemainingLowercase())) { // Tuinity
+             return builder.suggest(literal).buildFuture();
+         } else {
+             return Suggestions.empty();
 diff --git a/src/main/java/com/tuinity/tuinity/chunk/ChunkEntitiesByClass.java b/src/main/java/com/tuinity/tuinity/chunk/ChunkEntitiesByClass.java
 new file mode 100644
 index 000000000..d7eeaf28f
@@ -2296,7 +2377,7 @@ index a33303c31..ce57e6a4a 100644
          return this.b.equals(entityliving.getEntityType()) && this.d.test(entityliving);
      }
 diff --git a/src/main/java/net/minecraft/server/BlockBase.java b/src/main/java/net/minecraft/server/BlockBase.java
-index 8265ed4da..15d8e3983 100644
+index 505d40278..e0a258f0c 100644
 --- a/src/main/java/net/minecraft/server/BlockBase.java
 +++ b/src/main/java/net/minecraft/server/BlockBase.java
 @@ -182,8 +182,8 @@ public abstract class BlockBase {
@@ -2443,19 +2524,6 @@ index 12a023044..9e5e6de52 100644
  
              if (tileentity instanceof IInventory) {
                  InventoryUtils.dropInventory(world, blockposition, (IInventory) tileentity);
-diff --git a/src/main/java/net/minecraft/server/BlockPortalShape.java b/src/main/java/net/minecraft/server/BlockPortalShape.java
-index 6ef81aeb4..a84844726 100644
---- a/src/main/java/net/minecraft/server/BlockPortalShape.java
-+++ b/src/main/java/net/minecraft/server/BlockPortalShape.java
-@@ -227,7 +227,7 @@ public class BlockPortalShape {
-     public static ShapeDetectorShape a(WorldServer worldserver, BlockUtil.Rectangle blockutil_rectangle, EnumDirection.EnumAxis enumdirection_enumaxis, Vec3D vec3d, EntitySize entitysize, Vec3D vec3d1, float f, float f1, CraftPortalEvent portalEventInfo) { // CraftBukkit // PAIL rename toDetectorShape
-         BlockPosition blockposition = blockutil_rectangle.origin;
-         IBlockData iblockdata = worldserver.getType(blockposition);
--        EnumDirection.EnumAxis enumdirection_enumaxis1 = (EnumDirection.EnumAxis) iblockdata.get(BlockProperties.E);
-+        EnumDirection.EnumAxis enumdirection_enumaxis1 = !iblockdata.contains(BlockProperties.E) ? enumdirection_enumaxis : (EnumDirection.EnumAxis) iblockdata.get(BlockProperties.E); // Tuinity - use provided direction if the block doesn't have one
-         double d0 = (double) blockutil_rectangle.side1;
-         double d1 = (double) blockutil_rectangle.side2;
-         int i = enumdirection_enumaxis == enumdirection_enumaxis1 ? 0 : 90;
 diff --git a/src/main/java/net/minecraft/server/BlockPosition.java b/src/main/java/net/minecraft/server/BlockPosition.java
 index 2d887af90..2291135ea 100644
 --- a/src/main/java/net/minecraft/server/BlockPosition.java
@@ -3654,10 +3722,10 @@ index 95ef96286..73163b417 100644
          T t0 = this.h.a(this.a.a(i));
  
 diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
-index 1c878265b..5907caa74 100644
+index f55dc28f3..8542f2f4d 100644
 --- a/src/main/java/net/minecraft/server/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/DedicatedServer.java
-@@ -170,6 +170,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+@@ -166,6 +166,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
          com.destroystokyo.paper.PaperConfig.registerCommands();
          com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // load version history now
          // Paper end
@@ -3679,10 +3747,10 @@ index 550232cb3..229c3b0f0 100644
                      throwable = throwable1;
                      throw throwable1;
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 1ee01486f..f55e4e729 100644
+index cfb14c54d..753c52407 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
-@@ -137,7 +137,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -135,7 +135,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
      public double D;
      public double E;
      public double F;
@@ -3691,7 +3759,7 @@ index 1ee01486f..f55e4e729 100644
      public boolean noclip;
      public float I;
      protected final Random random;
-@@ -208,6 +208,14 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -205,6 +205,14 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
      }
      // CraftBukkit end
  
@@ -3706,7 +3774,7 @@ index 1ee01486f..f55e4e729 100644
      // Paper start - optimise entity tracking
      final org.spigotmc.TrackingRange.TrackingRangeType trackingRangeType = org.spigotmc.TrackingRange.getTrackingRangeType(this);
  
-@@ -223,6 +231,41 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -220,6 +228,41 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
      }
      // Paper end - optimise entity tracking
  
@@ -3748,7 +3816,7 @@ index 1ee01486f..f55e4e729 100644
      public Entity(EntityTypes<?> entitytypes, World world) {
          this.id = Entity.entityCount.incrementAndGet();
          this.passengers = Lists.newArrayList();
-@@ -591,7 +634,39 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -588,7 +631,39 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return this.onGround;
      }
  
@@ -3788,7 +3856,7 @@ index 1ee01486f..f55e4e729 100644
          if (this.noclip) {
              this.a(this.getBoundingBox().c(vec3d));
              this.recalcPosition();
-@@ -619,7 +694,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -616,7 +691,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              // Paper end
  
              vec3d = this.a(vec3d, enummovetype);
@@ -3797,7 +3865,7 @@ index 1ee01486f..f55e4e729 100644
  
              if (vec3d1.g() > 1.0E-7D) {
                  this.a(this.getBoundingBox().c(vec3d1));
-@@ -722,11 +797,33 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -719,11 +794,33 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              float f2 = this.getBlockSpeedFactor();
  
              this.setMot(this.getMot().d((double) f2, 1.0D, (double) f2));
@@ -3835,7 +3903,7 @@ index 1ee01486f..f55e4e729 100644
  
              if (this.aF() && this.isBurning()) {
                  this.playSound(SoundEffects.ENTITY_GENERIC_EXTINGUISH_FIRE, 0.7F, 1.6F + (this.random.nextFloat() - this.random.nextFloat()) * 0.4F);
-@@ -735,6 +832,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -732,6 +829,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
  
              this.world.getMethodProfiler().exit();
          }
@@ -3849,7 +3917,7 @@ index 1ee01486f..f55e4e729 100644
      }
  
      protected BlockPosition ao() {
-@@ -815,6 +919,132 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -812,6 +916,132 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return d0;
      }
  
@@ -3982,7 +4050,7 @@ index 1ee01486f..f55e4e729 100644
      private Vec3D g(Vec3D vec3d) {
          AxisAlignedBB axisalignedbb = this.getBoundingBox();
          VoxelShapeCollision voxelshapecollision = VoxelShapeCollision.a(this);
-@@ -850,6 +1080,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -847,6 +1077,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return vec3d1;
      }
  
@@ -3990,7 +4058,7 @@ index 1ee01486f..f55e4e729 100644
      public static double c(Vec3D vec3d) {
          return vec3d.x * vec3d.x + vec3d.z * vec3d.z;
      }
-@@ -1352,6 +1583,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1349,6 +1580,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return d3 * d3 + d4 * d4 + d5 * d5;
      }
  
@@ -3998,7 +4066,7 @@ index 1ee01486f..f55e4e729 100644
      public double h(Entity entity) {
          return this.e(entity.getPositionVector());
      }
-@@ -1924,9 +2156,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1921,9 +2153,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              float f1 = this.size.width * 0.8F;
              AxisAlignedBB axisalignedbb = AxisAlignedBB.g((double) f1, 0.10000000149011612D, (double) f1).d(this.locX(), this.getHeadY(), this.locZ());
  
@@ -4010,7 +4078,7 @@ index 1ee01486f..f55e4e729 100644
          }
      }
  
-@@ -1934,11 +2166,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1931,11 +2163,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return EnumInteractionResult.PASS;
      }
  
@@ -4026,7 +4094,7 @@ index 1ee01486f..f55e4e729 100644
          return false;
      }
  
-@@ -3275,12 +3509,16 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -3273,12 +3507,16 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return this.locBlock;
      }
  
@@ -4043,7 +4111,7 @@ index 1ee01486f..f55e4e729 100644
      }
  
      public void setMot(double d0, double d1, double d2) {
-@@ -3335,7 +3573,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -3333,7 +3571,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          }
          // Paper end
          if (this.loc.x != d0 || this.loc.y != d1 || this.loc.z != d2) {
@@ -4067,7 +4135,7 @@ index 314886398..79de11ce2 100644
              this.setPersistent();
          }
 diff --git a/src/main/java/net/minecraft/server/EntityInsentient.java b/src/main/java/net/minecraft/server/EntityInsentient.java
-index 9cf496b5e..978391b6d 100644
+index 04eff0182..8354921b8 100644
 --- a/src/main/java/net/minecraft/server/EntityInsentient.java
 +++ b/src/main/java/net/minecraft/server/EntityInsentient.java
 @@ -707,7 +707,13 @@ public abstract class EntityInsentient extends EntityLiving {
@@ -4086,10 +4154,10 @@ index 9cf496b5e..978391b6d 100644
              if (entityhuman != null) {
                  double d0 = entityhuman.h((Entity) this); // CraftBukkit - decompile error
 diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
-index c622fb704..ec9174206 100644
+index 76185f042..0e000c718 100644
 --- a/src/main/java/net/minecraft/server/EntityLiving.java
 +++ b/src/main/java/net/minecraft/server/EntityLiving.java
-@@ -2846,7 +2846,11 @@ public abstract class EntityLiving extends Entity {
+@@ -2847,7 +2847,11 @@ public abstract class EntityLiving extends Entity {
              return;
          }
          // Paper - end don't run getEntities if we're not going to use its result
@@ -4102,7 +4170,7 @@ index c622fb704..ec9174206 100644
  
          if (!list.isEmpty()) {
              // Paper - move up
-@@ -2875,6 +2879,9 @@ public abstract class EntityLiving extends Entity {
+@@ -2876,6 +2880,9 @@ public abstract class EntityLiving extends Entity {
                  this.C(entity);
              }
          }
@@ -4113,7 +4181,7 @@ index c622fb704..ec9174206 100644
      }
  
 diff --git a/src/main/java/net/minecraft/server/EntityTrackerEntry.java b/src/main/java/net/minecraft/server/EntityTrackerEntry.java
-index 831298e3b..7ab013058 100644
+index 4efc40c01..f322dccd8 100644
 --- a/src/main/java/net/minecraft/server/EntityTrackerEntry.java
 +++ b/src/main/java/net/minecraft/server/EntityTrackerEntry.java
 @@ -74,6 +74,7 @@ public class EntityTrackerEntry {
@@ -4430,7 +4498,7 @@ index ff74be145..653ba0f1d 100644
          0, 2, 60L, TimeUnit.SECONDS,
          new LinkedBlockingQueue<Runnable>(),
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 65e8dc340..d255be60b 100644
+index 883c17f00..825ac8501 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -155,6 +155,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
@@ -4639,7 +4707,7 @@ index 65e8dc340..d255be60b 100644
  
      public CrashReport b(CrashReport crashreport) {
 diff --git a/src/main/java/net/minecraft/server/NavigationAbstract.java b/src/main/java/net/minecraft/server/NavigationAbstract.java
-index a85154aa2..bd0538eb1 100644
+index 921b60469..4994d8b9d 100644
 --- a/src/main/java/net/minecraft/server/NavigationAbstract.java
 +++ b/src/main/java/net/minecraft/server/NavigationAbstract.java
 @@ -21,7 +21,7 @@ public abstract class NavigationAbstract {
@@ -4651,9 +4719,9 @@ index a85154aa2..bd0538eb1 100644
      protected long n;
      protected PathfinderAbstract o;
      private BlockPosition p;
-@@ -29,6 +29,13 @@ public abstract class NavigationAbstract {
-     private float r;
+@@ -30,6 +30,13 @@ public abstract class NavigationAbstract {
      private final Pathfinder s; public Pathfinder getPathfinder() { return this.s; } // Paper - OBFHELPER
+     private boolean t;
  
 +    // Tuinity start
 +    public boolean isViableForPathRecalculationChecking() {
@@ -4663,9 +4731,9 @@ index a85154aa2..bd0538eb1 100644
 +    // Tuinity end
 +
      public NavigationAbstract(EntityInsentient entityinsentient, World world) {
-         this.g = Vec3D.a;
+         this.g = Vec3D.ORIGIN;
          this.h = BaseBlockPosition.ZERO;
-@@ -84,7 +91,7 @@ public abstract class NavigationAbstract {
+@@ -85,7 +92,7 @@ public abstract class NavigationAbstract {
  
      @Nullable
      public PathEntity a(Stream<BlockPosition> stream, int i) {
@@ -4674,7 +4742,7 @@ index a85154aa2..bd0538eb1 100644
      }
  
      @Nullable
-@@ -384,7 +391,7 @@ public abstract class NavigationAbstract {
+@@ -393,7 +400,7 @@ public abstract class NavigationAbstract {
      }
  
      public void b(BlockPosition blockposition) {
@@ -5534,7 +5602,7 @@ index fcd3388d8..65ff0db14 100644
      // Paper end - optimised tracker
  
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index b067f3b70..602ed9aaa 100644
+index 05b3a7478..e4aab5348 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
 @@ -326,19 +326,24 @@ public class PlayerConnection implements PacketListenerPlayIn {
@@ -5687,7 +5755,7 @@ index 7ea293f38..e698dd226 100644
              });
              throw CancelledPacketHandleException.INSTANCE;
 diff --git a/src/main/java/net/minecraft/server/PlayerInteractManager.java b/src/main/java/net/minecraft/server/PlayerInteractManager.java
-index 6d192b274..f5de49e3e 100644
+index 300fad4b4..06d284012 100644
 --- a/src/main/java/net/minecraft/server/PlayerInteractManager.java
 +++ b/src/main/java/net/minecraft/server/PlayerInteractManager.java
 @@ -21,14 +21,29 @@ public class PlayerInteractManager {
@@ -7089,15 +7157,15 @@ index 2484293b1..1496c43fc 100644
  
      private static JsonElement a(UserCache.UserCacheEntry usercache_usercacheentry, DateFormat dateformat) {
 diff --git a/src/main/java/net/minecraft/server/Vec3D.java b/src/main/java/net/minecraft/server/Vec3D.java
-index 3048ba008..84858ba39 100644
+index 7f05587d4..5af554870 100644
 --- a/src/main/java/net/minecraft/server/Vec3D.java
 +++ b/src/main/java/net/minecraft/server/Vec3D.java
 @@ -4,7 +4,7 @@ import java.util.EnumSet;
  
  public class Vec3D implements IPosition {
  
--    public static final Vec3D a = new Vec3D(0.0D, 0.0D, 0.0D);
-+    public static final Vec3D a = new Vec3D(0.0D, 0.0D, 0.0D); public static Vec3D getZeroVector() { return Vec3D.a; } // Tuinity - OBFHELPER
+-    public static final Vec3D ORIGIN = new Vec3D(0.0D, 0.0D, 0.0D);
++    public static final Vec3D ORIGIN = new Vec3D(0.0D, 0.0D, 0.0D); public static Vec3D getZeroVector() { return Vec3D.ORIGIN; } // Tuinity - OBFHELPER
      public final double x;
      public final double y;
      public final double z;
@@ -7670,7 +7738,7 @@ index 5d9d58411..f0fdfd689 100644
          private double c;
  
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 724aec660..1e1d7f834 100644
+index eaa285393..0c464c7cd 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -75,7 +75,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
@@ -7985,7 +8053,7 @@ index f01186988..26a8c4ffe 100644
          return this.j.d();
      }
 diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
-index efe10b7f5..931556a5c 100644
+index 25cdd7b0f..b05b9a2fc 100644
 --- a/src/main/java/net/minecraft/server/WorldServer.java
 +++ b/src/main/java/net/minecraft/server/WorldServer.java
 @@ -51,12 +51,13 @@ import org.bukkit.event.server.MapInitializeEvent;
@@ -8695,8 +8763,8 @@ index efe10b7f5..931556a5c 100644
          if (!(entity instanceof EntityHuman) && !this.getChunkProvider().a(entity)) {
              this.chunkCheck(entity);
          } else {
-@@ -851,6 +1430,11 @@ public class WorldServer extends World implements GeneratorAccessSeed {
-             } // Paper - timings
+@@ -858,6 +1437,11 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+             //} finally { timer.stopTiming(); } // Paper - timings - move up
  
          }
 +        // Tuinity start - log detailed entity tick information
@@ -8707,7 +8775,7 @@ index efe10b7f5..931556a5c 100644
      }
  
      public void a(Entity entity, Entity entity1) {
-@@ -894,6 +1478,12 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -915,6 +1499,12 @@ public class WorldServer extends World implements GeneratorAccessSeed {
              int i = MathHelper.floor(entity.locX() / 16.0D);
              int j =  Math.min(15, Math.max(0, MathHelper.floor(entity.locY() / 16.0D))); // Paper - stay consistent with chunk add/remove behavior
              int k = MathHelper.floor(entity.locZ() / 16.0D);
@@ -8720,7 +8788,7 @@ index efe10b7f5..931556a5c 100644
  
              if (!entity.inChunk || entity.chunkX != i || entity.chunkY != j || entity.chunkZ != k) {
                  // Paper start - remove entity if its in a chunk more correctly.
-@@ -903,6 +1493,12 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -924,6 +1514,12 @@ public class WorldServer extends World implements GeneratorAccessSeed {
                  }
                  // Paper end
  
@@ -8733,7 +8801,7 @@ index efe10b7f5..931556a5c 100644
                  if (entity.inChunk && this.isChunkLoaded(entity.chunkX, entity.chunkZ)) {
                      this.getChunkAt(entity.chunkX, entity.chunkZ).a(entity, entity.chunkY);
                  }
-@@ -916,6 +1512,11 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -937,6 +1533,11 @@ public class WorldServer extends World implements GeneratorAccessSeed {
                  } else {
                      this.getChunkAt(i, k).a(entity);
                  }
@@ -8745,7 +8813,7 @@ index efe10b7f5..931556a5c 100644
              }
  
              this.getMethodProfiler().exit();
-@@ -1267,7 +1868,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1288,7 +1889,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
                  Entity entity = (Entity) iterator.next();
  
                  if (!(entity instanceof EntityPlayer)) {
@@ -8754,7 +8822,7 @@ index efe10b7f5..931556a5c 100644
                          throw (IllegalStateException) SystemUtils.c((Throwable) (new IllegalStateException("Removing entity while ticking!")));
                      }
  
-@@ -1295,6 +1896,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1316,6 +1917,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
  
      public void unregisterEntity(Entity entity) {
          org.spigotmc.AsyncCatcher.catchOp("entity unregister"); // Spigot
@@ -8762,7 +8830,7 @@ index efe10b7f5..931556a5c 100644
          // Paper start - fix entity registration issues
          if (entity instanceof EntityComplexPart) {
              // Usually this is a no-op for complex parts, and ID's should be removed, but go ahead and remove it anyways
-@@ -1361,17 +1963,108 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1382,17 +1984,108 @@ public class WorldServer extends World implements GeneratorAccessSeed {
          this.getScoreboard().a(entity);
          // CraftBukkit start - SPIGOT-5278
          if (entity instanceof EntityDrowned) {
@@ -8874,7 +8942,7 @@ index efe10b7f5..931556a5c 100644
      private void registerEntity(Entity entity) {
          org.spigotmc.AsyncCatcher.catchOp("entity register"); // Spigot
          // Paper start - don't double enqueue entity registration
-@@ -1382,7 +2075,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1403,7 +2096,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
              return;
          }
          // Paper end
@@ -8883,7 +8951,7 @@ index efe10b7f5..931556a5c 100644
              if (!entity.isQueuedForRegister) { // Paper
                  this.entitiesToAdd.add(entity);
                  entity.isQueuedForRegister = true; // Paper
-@@ -1390,6 +2083,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1411,6 +2104,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
          } else {
              entity.isQueuedForRegister = false; // Paper
              this.entitiesById.put(entity.getId(), entity);
@@ -8891,7 +8959,7 @@ index efe10b7f5..931556a5c 100644
              if (entity instanceof EntityEnderDragon) {
                  EntityComplexPart[] aentitycomplexpart = ((EntityEnderDragon) entity).eJ();
                  int i = aentitycomplexpart.length;
-@@ -1398,6 +2092,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1419,6 +2113,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
                      EntityComplexPart entitycomplexpart = aentitycomplexpart[j];
  
                      this.entitiesById.put(entitycomplexpart.getId(), entitycomplexpart);
@@ -8899,7 +8967,7 @@ index efe10b7f5..931556a5c 100644
                  }
              }
  
-@@ -1422,12 +2117,16 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1443,12 +2138,16 @@ public class WorldServer extends World implements GeneratorAccessSeed {
              // this.getChunkProvider().addEntity(entity); // Paper - moved down below valid=true
              // CraftBukkit start - SPIGOT-5278
              if (entity instanceof EntityDrowned) {
@@ -8919,7 +8987,7 @@ index efe10b7f5..931556a5c 100644
              }
              entity.valid = true; // CraftBukkit
              this.getChunkProvider().addEntity(entity); // Paper - from above to be below valid=true
-@@ -1443,7 +2142,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1464,7 +2163,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
      }
  
      public void removeEntity(Entity entity) {
@@ -8928,7 +8996,7 @@ index efe10b7f5..931556a5c 100644
              throw (IllegalStateException) SystemUtils.c((Throwable) (new IllegalStateException("Removing entity while ticking!")));
          } else {
              this.removeEntityFromChunk(entity);
-@@ -1544,8 +2243,26 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1565,8 +2264,26 @@ public class WorldServer extends World implements GeneratorAccessSeed {
          VoxelShape voxelshape1 = iblockdata1.getCollisionShape(this, blockposition);
  
          if (VoxelShapes.c(voxelshape, voxelshape1, OperatorBoolean.NOT_SAME)) {
@@ -8956,7 +9024,7 @@ index efe10b7f5..931556a5c 100644
  
              while (iterator.hasNext()) {
                  NavigationAbstract navigationabstract = (NavigationAbstract) iterator.next();
-@@ -1553,7 +2270,21 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1574,7 +2291,21 @@ public class WorldServer extends World implements GeneratorAccessSeed {
                  if (!navigationabstract.i()) {
                      navigationabstract.b(blockposition);
                  }
@@ -9006,10 +9074,10 @@ index ff8ba5457..ecedc167d 100644
  
      @Override
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 5f5b39b3b..2b0e1e698 100644
+index d8d29d145..786ddcee7 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -230,7 +230,7 @@ import javax.annotation.Nullable; // Paper
+@@ -232,7 +232,7 @@ import javax.annotation.Nullable; // Paper
  import javax.annotation.Nonnull; // Paper
  
  public final class CraftServer implements Server {
@@ -9018,7 +9086,7 @@ index 5f5b39b3b..2b0e1e698 100644
      private final String serverVersion;
      private final String bukkitVersion = Versioning.getBukkitVersion();
      private final Logger logger = Logger.getLogger("Minecraft");
-@@ -854,6 +854,7 @@ public final class CraftServer implements Server {
+@@ -856,6 +856,7 @@ public final class CraftServer implements Server {
  
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          com.destroystokyo.paper.PaperConfig.init((File) console.options.valueOf("paper-settings")); // Paper
@@ -9026,7 +9094,7 @@ index 5f5b39b3b..2b0e1e698 100644
          for (WorldServer world : console.getWorlds()) {
              world.worldDataServer.setDifficulty(config.difficulty);
              world.setSpawnFlags(config.spawnMonsters, config.spawnAnimals);
-@@ -888,6 +889,7 @@ public final class CraftServer implements Server {
+@@ -890,6 +891,7 @@ public final class CraftServer implements Server {
              }
              world.spigotConfig.init(); // Spigot
              world.paperConfig.init(); // Paper
@@ -9034,7 +9102,7 @@ index 5f5b39b3b..2b0e1e698 100644
          }
  
          Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
-@@ -1829,7 +1831,10 @@ public final class CraftServer implements Server {
+@@ -1831,7 +1833,10 @@ public final class CraftServer implements Server {
  
      @Override
      public boolean isPrimaryThread() {
@@ -9046,7 +9114,7 @@ index 5f5b39b3b..2b0e1e698 100644
      }
  
      @Override
-@@ -2239,6 +2244,14 @@ public final class CraftServer implements Server {
+@@ -2250,6 +2255,14 @@ public final class CraftServer implements Server {
              return com.destroystokyo.paper.PaperConfig.config;
          }
  
@@ -9114,7 +9182,7 @@ index 299f57ca2..4de6252f0 100644
          }, MinecraftServer.getServer());
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index bac292e6d..b4e65963e 100644
+index 9118f0542..a9c96d45c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -138,6 +138,13 @@ public class Main {
@@ -9141,7 +9209,7 @@ index bac292e6d..b4e65963e 100644
                          //Thread.sleep(TimeUnit.SECONDS.toMillis(20));
                          // Paper End
 diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
-index 3584d20c7..f336f4ecf 100644
+index 3524b6775..b668b7c03 100644
 --- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
 +++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
 @@ -214,7 +214,7 @@ public class CraftBlock implements Block {
