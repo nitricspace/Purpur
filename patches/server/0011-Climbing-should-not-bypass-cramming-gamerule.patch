@@ -5,10 +5,10 @@ Subject: [PATCH] Climbing should not bypass cramming gamerule
 
 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 4fc9fef57..caed900f1 100644
+index 65b2fc916..d4f9c7e6e 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
-@@ -1714,6 +1714,12 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1720,6 +1720,12 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
      }
  
      public boolean isCollidable() {
