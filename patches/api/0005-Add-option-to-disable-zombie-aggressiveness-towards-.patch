@@ -6,14 +6,18 @@ Subject: [PATCH] Add option to disable zombie aggressiveness towards villagers
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/entity/ai/VanillaGoal.java b/src/main/java/com/destroystokyo/paper/entity/ai/VanillaGoal.java
-index b42091752..cc9e9a94a 100644
+index b4209175..da638f97 100644
 --- a/src/main/java/com/destroystokyo/paper/entity/ai/VanillaGoal.java
 +++ b/src/main/java/com/destroystokyo/paper/entity/ai/VanillaGoal.java
-@@ -206,4 +206,8 @@ public interface VanillaGoal<T extends Mob> extends Goal<T> {
+@@ -206,4 +206,12 @@ public interface VanillaGoal<T extends Mob> extends Goal<T> {
      GoalKey<Zombie> ZOMBIE_ATTACK = GoalKey.of(Zombie.class, NamespacedKey.minecraft("zombie_attack"));
      GoalKey<Creature> STROLL_VILLAGE_GOLEM = GoalKey.of(Creature.class, NamespacedKey.minecraft("stroll_village_golem"));
      GoalKey<Mob> UNIVERSAL_ANGER_RESET = GoalKey.of(Mob.class, NamespacedKey.minecraft("universal_anger_reset"));
 +    // Purpur start
++	 // Placeholder
++	 // Placeholder
++	 // Placeholder
++    // Placeholder
 +    GoalKey<Drowned> DROWNED_ATTACK_VILLAGER = GoalKey.of(Drowned.class, NamespacedKey.minecraft("drowned_attack_villager"));
 +    GoalKey<Zombie> ZOMBIE_ATTACK_VILLAGER = GoalKey.of(Zombie.class, NamespacedKey.minecraft("zombie_attack_villager"));
 +    // Purpur end

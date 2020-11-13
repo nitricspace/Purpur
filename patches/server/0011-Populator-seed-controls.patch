@@ -5,7 +5,7 @@ Subject: [PATCH] Populator seed controls
 
 
 diff --git a/src/main/java/co/aikar/timings/TimingsExport.java b/src/main/java/co/aikar/timings/TimingsExport.java
-index dae2e5d7..55b67f10 100644
+index dae2e5d70..55b67f105 100644
 --- a/src/main/java/co/aikar/timings/TimingsExport.java
 +++ b/src/main/java/co/aikar/timings/TimingsExport.java
 @@ -293,7 +293,7 @@ public class TimingsExport extends Thread {
@@ -18,7 +18,7 @@ index dae2e5d7..55b67f10 100644
              }
              final Object val = config.get(key);
 diff --git a/src/main/java/com/tuinity/tuinity/config/TuinityConfig.java b/src/main/java/com/tuinity/tuinity/config/TuinityConfig.java
-index 996be9b7..1c634742 100644
+index 048139d13..51a2ec468 100644
 --- a/src/main/java/com/tuinity/tuinity/config/TuinityConfig.java
 +++ b/src/main/java/com/tuinity/tuinity/config/TuinityConfig.java
 @@ -1,5 +1,6 @@
@@ -26,21 +26,9 @@ index 996be9b7..1c634742 100644
  
 +import co.aikar.timings.TimingsManager;
  import com.destroystokyo.paper.util.SneakyThrow;
+ import net.minecraft.server.MinecraftServer;
  import net.minecraft.server.TicketType;
- import org.bukkit.Bukkit;
-@@ -243,6 +244,11 @@ public final class TuinityConfig {
-             return this.config.getDouble(path, this.worldDefaults.getDouble(path));
-         }
- 
-+        String getString(final String path, final String dfl) {
-+            this.worldDefaults.addDefault(path, dfl);
-+            return this.config.getString(path, this.worldDefaults.getString(path));
-+        }
-+
-         /** ignored if {@link TuinityConfig#tickWorldsInParallel} == false */
-         public int threads;
- 
-@@ -268,6 +274,19 @@ public final class TuinityConfig {
+@@ -370,6 +371,19 @@ public final class TuinityConfig {
              this.spawnLimitAmbient = this.getInt(path + ".ambient", -1);
          }
  
@@ -62,7 +50,7 @@ index 996be9b7..1c634742 100644
  }
 \ No newline at end of file
 diff --git a/src/main/java/net/minecraft/server/BiomeBase.java b/src/main/java/net/minecraft/server/BiomeBase.java
-index 0854ac9e..df6874c1 100644
+index 0854ac9ef..df6874c1c 100644
 --- a/src/main/java/net/minecraft/server/BiomeBase.java
 +++ b/src/main/java/net/minecraft/server/BiomeBase.java
 @@ -189,6 +189,10 @@ public final class BiomeBase {

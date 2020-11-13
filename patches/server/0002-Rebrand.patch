@@ -5,7 +5,7 @@ Subject: [PATCH] Rebrand
 
 
 diff --git a/pom.xml b/pom.xml
-index c88933f18..72807b2a4 100644
+index 78c2a8bbc..0c982c3f0 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,11 +1,11 @@
@@ -15,7 +15,7 @@ index c88933f18..72807b2a4 100644
 -    <artifactId>tuinity</artifactId>
 +    <artifactId>purpur</artifactId>
      <packaging>jar</packaging>
-     <version>1.16.3-R0.1-SNAPSHOT</version>
+     <version>1.16.4-R0.1-SNAPSHOT</version>
 -    <name>Tuinity-Server</name>
 -    <url>https://github.com/Spottedleaf/Tuinity</url>
 +    <name>Purpur-Server</name>
@@ -65,7 +65,7 @@ index c88933f18..72807b2a4 100644
          <dependency>
              <groupId>net.minecrell</groupId>
              <artifactId>terminalconsoleappender</artifactId>
-@@ -168,15 +182,15 @@
+@@ -175,15 +189,15 @@
  
      <!-- This builds a completely 'ready to start' jar with all dependencies inside -->
      <build>
@@ -97,11 +97,24 @@ index 74ed02fa9..c1280478e 100644
                  .variable(LineReader.HISTORY_FILE, java.nio.file.Paths.get(".console_history"))
                  .completer(new ConsoleCommandCompleter(this.server))
          );
+diff --git a/src/main/java/net/minecraft/server/EULA.java b/src/main/java/net/minecraft/server/EULA.java
+index 229c3b0f0..f88cf526d 100644
+--- a/src/main/java/net/minecraft/server/EULA.java
++++ b/src/main/java/net/minecraft/server/EULA.java
+@@ -70,7 +70,7 @@ public class EULA {
+                     Properties properties = new Properties();
+ 
+                     properties.setProperty("eula", "false");
+-                    properties.store(outputstream, "By changing the setting below to TRUE you are indicating your agreement to our EULA (https://account.mojang.com/documents/minecraft_eula).");  // Paper - fix lag; // Tuinity - Tacos are disgusting
++                    properties.store(outputstream, "By changing the setting below to TRUE you are indicating your agreement to our EULA (https://account.mojang.com/documents/minecraft_eula).\nYou also agree that tacos are tasty, and the best food in the world.");  // Paper - fix lag; // Tuinity - Tacos are disgusting // Purpur - no they're not
+                 } catch (Throwable throwable1) {
+                     throwable = throwable1;
+                     throw throwable1;
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 825ac8501..8998f3ded 100644
+index 08518ff57..b6aa6454e 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1512,7 +1512,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+@@ -1514,7 +1514,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
      }
  
      public String getServerModName() {
@@ -232,7 +245,7 @@ index 000000000..d8b408f06
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 786ddcee7..c7a9b31e3 100644
+index 9bf854b5a..260d3513e 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -232,7 +232,7 @@ import javax.annotation.Nullable; // Paper
@@ -245,10 +258,10 @@ index 786ddcee7..c7a9b31e3 100644
      private final String bukkitVersion = Versioning.getBukkitVersion();
      private final Logger logger = Logger.getLogger("Minecraft");
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
-index 0b2bc20d1..63bfd1c70 100644
+index 0f7f1503d..65a85f226 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
-@@ -347,7 +347,7 @@ public final class CraftMagicNumbers implements UnsafeValues {
+@@ -353,7 +353,7 @@ public final class CraftMagicNumbers implements UnsafeValues {
  
      @Override
      public com.destroystokyo.paper.util.VersionFetcher getVersionFetcher() {

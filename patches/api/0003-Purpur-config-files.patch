@@ -5,10 +5,10 @@ Subject: [PATCH] Purpur config files
 
 
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index 740a86a8..fdceafc7 100644
+index 7a51edbd..49343ce9 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
-@@ -1464,6 +1464,18 @@ public interface Server extends PluginMessageRecipient {
+@@ -1483,6 +1483,18 @@ public interface Server extends PluginMessageRecipient {
          }
          // Tuinity end - add config to timings report
  

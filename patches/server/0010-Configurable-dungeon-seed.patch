@@ -31,7 +31,7 @@ index 07f7b69fe..6aa1626f3 100644
          int i = random.nextInt(2) + 2;
          int j = -i - 1;
 diff --git a/src/main/java/net/pl3x/purpur/PurpurConfig.java b/src/main/java/net/pl3x/purpur/PurpurConfig.java
-index d1745e7b9..d633b4639 100644
+index d6c1434d5..6fd76718b 100644
 --- a/src/main/java/net/pl3x/purpur/PurpurConfig.java
 +++ b/src/main/java/net/pl3x/purpur/PurpurConfig.java
 @@ -129,10 +129,13 @@ public class PurpurConfig {
