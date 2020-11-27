@@ -3,401 +3,6 @@ From: Spottedleaf <Spottedleaf@users.noreply.github.com>
 Date: Fri, 14 Dec 2018 21:53:58 -0800
 Subject: [PATCH] Tuinity Server Changes
 
-Brand changes
-
-MC-Dev fixes
-
-Util patch
-
-Tuinity Server Config
-
-Multi-Threaded Server Ticking Vanilla
-
-This patch is the vanilla server changes
-
-Currently a placeholder patch.
-
-Multi-Threaded ticking CraftBukkit
-
-These are the changes to CB
-
-Currently a placeholder patch.
-
-Add soft async catcher
-
-Must be enabled via -Dtuinity.strict-thread-checks=true
-
-Delay chunk unloads
-
-Chunk unloads are now delayed by 1s. Specifically, ticket level
-reduction is delayed by 1s. This is done to allow players to
-teleport and have their pets follow them, as the chunks will no longer
-unload or have entity ticking status removed.
-
-It's also targetted to reduce performance regressions when
-plugins or edge cases in code do not spam sync loads since chunks
-without tickets get unloaded immediately.
-
-Configurable under `delay-chunkunloads-by` in config.
-
-This patch replaces the paper patch as the paper patch only
-affects player loaded chunks, when we want to target all
-loads.
-
-Attempt to recalculate regionfile header if it is corrupt
-
-Instead of trying to relocate the chunk, which is seems to never
-be the correct choice, so we end up duplicating or swapping chunks,
-we instead drop the current regionfile header and recalculate -
-hoping that at least then we don't swap chunks, and maybe recover
-them all.
-
-Lag compensate block breaking
-
-Use time instead of ticks if ticks fall behind
-
-Update version fetcher repo
-
-Sets the target github repo to Tuinity in the version checker. Also disables the jenkins build lookups.
-
-Per World Spawn Limits
-
-Detail more information in watchdog dumps
-
-- Dump position, world, velocity, and uuid for currently ticking entities
-- Dump player name, player uuid, position, and world for packet handling
-
-Execute chunk tasks mid-tick
-
-This will help the server load chunks if tick times are high.
-
-Change writes to use NORMAL priority rather than LOW
-
-Should limit build up of I/O tasks, or at least properly
-indicate to server owners that I/O is falling behind
-
-Allow controlled flushing for network manager
-
-Only make one flush call when emptying the packet queue too
-
-This patch will be used to optimise out flush calls in later
-patches.
-
-Consolidate flush calls for entity tracker packets
-
-Most server packets seem to be sent from here, so try to avoid
-expensive flush calls from them.
-
-This change was motivated due to local testing:
-
-- My server spawn has 130 cows in it (for testing a prev. patch)
-- Try to let 200 players join spawn
-
-Without this change, I could only get 20 players on before they
-all started timing out due to the load put on the Netty I/O threads.
-
-With this change I could get all 200 on at 0ms ping.
-
-(one of the primary issues is that my CPU is kinda trash, and having
-4 extra threads at 100% is just too much for it).
-
-So in general this patch should reduce Netty I/O thread load.
-
-Time scoreboard search
-
-Plugins leaking scoreboards will make this very expensive,
-let server owners debug it easily
-
-Make CallbackExecutor strict again
-
-The correct fix for double scheduling is to avoid it. The reason
-this class is used is because double scheduling causes issues
-elsewhere, and it acts as an explicit detector of what double
-schedules. Effectively, use the callback executor as a tool of
-finding issues rather than hiding these issues.
-
-This patch also reverts incorrect use(s) of the class by paper.
-
-- getChunkFutureAsynchronously
-  There is no risk at all of recursion. The future is executed on
-  the chunk provider's thread queue, the same place general plugin
-  load callbacks are executed on. Forcing the task execution into
-  the callback executor also prevents the future from catching
-  any exception thrown from it.
-
-Optimise entity hard collision checking
-
-Very few entities actually hard collide, so store them in their own
-entity slices and provide a special getEntites type call just for them.
-This reduces entity collision checking impact (in my testing) by 25%
-for crammed entities (shove 130 cows into an 8x6 area in one chunk).
-Less crammed entities are likely to show significantly less benefit.
-Effectively, this patch optimises crammed entity situations.
-
-Improved oversized chunk data packet handling
-
-Now target all TE data, except for TE's that do not have
-update packets.
-
-This patch relies upon the improve extra packet handling
-patch, as we now use PacketPlayOutMapChunk as an extra packet.
-See its patch notes for further details.
-
-Reduce iterator allocation from chunk gen
-
-Replace via iterating over an array
-
-Prevent long map entry creation in light engine
-
-Use fastiterator to prevent it
-
-Highly optimise single and multi-AABB VoxelShapes and collisions
-
-Reduce allocation rate from crammed entities
-
-Optimise chunk tick iteration
-
-Use a dedicated list of entity ticking chunks to reduce the cost
-
-Use entity ticking chunk map for entity tracker
-
-Should bring us back in-line with tracker performance
-before the loaded entity list reversion.
-
-Improve paper prevent moving into unloaded chunk check
-
-Check the AABB of the move
-
-Improve async tp to not load chunks when crossing worlds
-
-Fixes an issue where a getCubes call would load neighbouring chunks.
-Loads less chunks than paper's implementation
-
-Revert getChunkAt(Async) retaining chunks for long periods of time
-
-Rework PlayerChunk main thread checks
-
-These need to fail instead of continuing, as hiding these errors
-the way paper has is just going to allow unexpected reordering
-of callbacks.
-
-For example, thanks to this patch incorrect future
-completion (completion of the world gen future,
-PlayerChunkMap#b(PlayerChunk, ChunkStatus)) was detected and fixed.
-
-Allow Entities to be removed from a world while ticking
-
-Fixes issues like disconnecting players while ticking them, or
-issues where teleporting players across worlds while ticking.
-
-Also allows us to run mid tick while ticking entities.
-
-Prevent unload() calls removing tickets for sync loads
-
-Prevent log spam for "Block is water but TE is chest"
-
-Happens when breaking a waterlogged chest.
-Fix is to just not validate the TE while the chest is being removed.
-
-Optimise collision checking in player move packet handling
-
-Don't need to do another getCubes call if the move() call
-doesn't find any collisions
-
-Optimise heightmap access
-
-HeightMap uses DataBits for storage to reduce the memory footprint
-of the underlying heightmap. However, this reduction in memory
-footprint comes at the cost of encoding/decoding each access.
-
-So we can make the tradeoff of raw array access by using a char
-array internally. For every 100,000 chunks, this will add approximately
-80MB overhead (4 heightmaps per full chunk) - which is acceptable.
-
-Manually inline methods in BlockPosition
-
-Separate lookup locking from state access in UserCache
-
-Prevent lookups from stalling simple state access/write calls
-
-Distance manager tick timings
-
-Recently this has been taking up more time, so add a timings to
-really figure out how much.
-
-Name craft scheduler threads according to the plugin using them
-
-Provides quick access to culprits running far more threads than
-they should be
-
-Fix swamp hut cat generation deadlock
-
-The worldgen thread will attempt to get structure references
-via the world's getChunkAt method, which is fine if the gen is
-not cancelled - but if the chunk was unloaded, the call will block
-indefinitely. Instead of using the world state, we use the already
-supplied generatoraccess which will always have the chunk available.
-
-Range check flag dirty calls in PlayerChunk
-
-Simply return.
-
-Optimise tab complete
-
-Some of the toLowerCase calls can be expensive.
-
-Do not allow ticket level changes while unloading playerchunks
-
-Sync loading the chunk at this stage would cause it to load
-older data, as well as screwing our region state.
-
-Make sure inlined getChunkAt has inlined logic for loaded chunks
-
-Tux did some profiling some time ago and showed that the
-previous getChunkAt method which had inlined logic for loaded
-chunks did get inlined, but the standard CPS.getChunkAt
-method was not inlined.
-
-Paper recently reverted this optimisation, so it's been reintroduced
-here.
-
-Temporarily Revert usage of Region Manager
-
-Has some stability issues.
-
-Add packet limiter config
-
-Example config:
-packet-limiter:
-  kick-message: '&cSent too many packets'
-  limits:
-    all:
-      interval: 7.0
-      max-packet-rate: 500.0
-    PacketPlayInAutoRecipe:
-      interval: 4.0
-      max-packet-rate: 5.0
-      action: DROP
-
-all section refers to all incoming packets, the action for all is
-hard coded to KICK.
-
-For specific limits, the section name is the class's name,
-and an action can be defined: DROP or KICK
-
-If interval or rate are less-than 0, the limit is ignored
-
-Optimise closest entity lookup used by AI goals
-
-Use a special entity slice for tracking entities by class as well
-as counts per chunk. This should reduce the number of entities searched.
-
-Optimise EntityInsentient#checkDespawn
-
-Use a distance map to map out close players.
-Note that it's important that we cache the distance map value per chunk
-since the penalty of a map lookup could outweigh the benefits of
-searching less players (as it basically did in the outside range patch).
-
-Remove streams for villager AI
-
-POI searching:
-Turns out chaining a lot of streams together has inane amounts of
-overheard. Use the good ol iterator method to remove that overhead.
-
-The rest is just standard stream removal.
-
-Also remove streams for poi searching in some zombie pathfinding.
-
-Don't lookup fluid state when raytracing
-
-Just use the iblockdata already retrieved, removes a getType call.
-
-Reduce pathfinder branches
-
-Reduce static path type detection to simple lazy-init fields
-
-Add Velocity natives for encryption and compression
-
-Optimise non-flush packet sending
-
-Places like entity tracking make heavy use of packet sending,
-and internally netty will use some very expensive thread wakeup
-calls when scheduling.
-
-Thanks to various hacks in ProtocolLib as well as other
-plugins, we cannot simply use a queue of packets to group
-send on execute. We have to call execute for each packet.
-
-Tux's suggestion here is exactly what was needed - tag
-the Runnable indicating it should not make a wakeup call.
-
-Big thanks to Tux for making this possible as I had given
-up on this optimisation before he came along.
-
-Locally this patch drops the entity tracker tick by a full 1.5x.
-
-Do not retain playerchunkmap instance in light thread factory
-
-The executor returned is finalizable and of course
-that causes issues.
-
-Rewrite the light engine
-
-The standard vanilla light engine is plagued by
-awful performance. Paper's changes to the light engine
-help a bit, however they appear to cause some lighting
-errors - most easily noticed in coral generation.
-
-The vanilla light engine's is too abstract to be modified -
-so an entirely new implementation is required to fix the
-performance and lighting errors.
-
-The new implementation is designed primarily to optimise
-light level propagations (increase and decrease). Unlike
-the vanilla light engine, this implementation tracks more
-information per queued value when performing a
-breadth first search. Vanilla just tracks coordinate, which
-means every time they handle a queued value, they must
-also determine the coordinate's target light level
-from its neighbours - very wasteful, especially considering
-these checks read neighbour block data.
-The new light engine tracks both position and target level,
-as well as whether the target block needs to be read at all
-(for checking sided propagation). So, the work done per coordinate
-is significantly reduced because no work is done for calculating
-the target level.
-In my testing, the block get calls were reduced by approximately
-an order of magnitude. However, the light read checks were only
-reduced by approximately 2x - but this is fine, light read checks
-are extremely cheap compared to block gets.
-
-Generation testing showed that the new light engine improved
-total generation (not lighting itself, but the whole generation process)
-by 2x. According to cpu time, the light engine itself spent 10x less time
-lighting chunks for generation.
-
-fixup! Highly optimise single and multi-AABB VoxelShapes and collisions
-
-Revert Temporarily-Revert-usage-of-Region-Manager
-
-Optimise WorldServer#notify
-
-Iterating over all of the navigators in the world is pretty expensive.
-Instead, only iterate over navigators in the current region that are
-eligible for repathing.
-
-fixup! Util patch
-
-fixup! Util patch
-
-Actually unload POI data
-
-While it's not likely for a poi data leak to be meaningful,
-sometimes it is.
-
-This patch also prevents the saving/unloading of POI data when
-world saving is disabled.
 
 diff --git a/pom.xml b/pom.xml
 index 80f165291..78c2a8bbc 100644
@@ -527,6 +132,28 @@ index e33e889c2..5dfa06588 100644
          ));
  
          new TimingsExport(listeners, parent, history).start();
+diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
+index 8a19c9649..8725b5aab 100644
+--- a/src/main/java/com/destroystokyo/paper/Metrics.java
++++ b/src/main/java/com/destroystokyo/paper/Metrics.java
+@@ -581,7 +581,7 @@ public class Metrics {
+             boolean logFailedRequests = config.getBoolean("logFailedRequests", false);
+             // Only start Metrics, if it's enabled in the config
+             if (config.getBoolean("enabled", true)) {
+-                Metrics metrics = new Metrics("Paper", serverUUID, logFailedRequests, Bukkit.getLogger());
++                Metrics metrics = new Metrics("Tuinity", serverUUID, logFailedRequests, Bukkit.getLogger()); // Tuinity - we have our own bstats page
+ 
+                 metrics.addCustomChart(new Metrics.SimplePie("minecraft_version", () -> {
+                     String minecraftVersion = Bukkit.getVersion();
+@@ -591,7 +591,7 @@ public class Metrics {
+ 
+                 metrics.addCustomChart(new Metrics.SingleLineChart("players", () -> Bukkit.getOnlinePlayers().size()));
+                 metrics.addCustomChart(new Metrics.SimplePie("online_mode", () -> Bukkit.getOnlineMode() || PaperConfig.isProxyOnlineMode() ? "online" : "offline"));
+-                metrics.addCustomChart(new Metrics.SimplePie("paper_version", () -> (Metrics.class.getPackage().getImplementationVersion() != null) ? Metrics.class.getPackage().getImplementationVersion() : "unknown"));
++                metrics.addCustomChart(new Metrics.SimplePie("tuinity_version", () -> (Metrics.class.getPackage().getImplementationVersion() != null) ? Metrics.class.getPackage().getImplementationVersion() : "unknown")); // Tuinity - we have our own bstats page
+ 
+                 metrics.addCustomChart(new Metrics.DrilldownPie("java_version", () -> {
+                     Map<String, Map<String, Integer>> map = new HashMap<>();
 diff --git a/src/main/java/com/destroystokyo/paper/PaperCommand.java b/src/main/java/com/destroystokyo/paper/PaperCommand.java
 index d798de637..a4602ebaa 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperCommand.java
@@ -1611,29 +1238,43 @@ index 000000000..e7df9dc4b
 +}
 diff --git a/src/main/java/com/tuinity/tuinity/chunk/light/SWMRNibbleArray.java b/src/main/java/com/tuinity/tuinity/chunk/light/SWMRNibbleArray.java
 new file mode 100644
-index 000000000..6a63699ae
+index 000000000..6cae16cc3
 --- /dev/null
 +++ b/src/main/java/com/tuinity/tuinity/chunk/light/SWMRNibbleArray.java
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,196 @@
 +package com.tuinity.tuinity.chunk.light;
 +
 +import net.minecraft.server.NibbleArray;
-+
++import java.util.ArrayDeque;
 +import java.util.Arrays;
 +
 +// SWMR -> Single Writer Multi Reader Nibble Array
 +public final class SWMRNibbleArray {
 +
-+    public static final int SIZE = 16 * 16 * 16 / (8/4); // blocks / bytes per block
-+    protected static final byte[] FULL_LIT = new byte[SIZE];
++    public static final int ARRAY_SIZE = 16 * 16 * 16 / (8/4); // blocks / bytes per block
++    protected static final byte[] FULL_LIT = new byte[ARRAY_SIZE];
 +    static {
 +        Arrays.fill(FULL_LIT, (byte)-1);
 +    }
++    // this allows us to maintain only 1 byte array when we're not updating
++    static final ThreadLocal<ArrayDeque<byte[]>> WORKING_BYTES_POOL = ThreadLocal.withInitial(ArrayDeque::new);
 +
-+    protected byte[] updatingBytes;
++    private static byte[] allocateBytes() {
++        final byte[] inPool = WORKING_BYTES_POOL.get().pollFirst();
++        if (inPool != null) {
++            return inPool;
++        }
++
++        return new byte[ARRAY_SIZE];
++    }
++
++    private static void freeBytes(final byte[] bytes) {
++        WORKING_BYTES_POOL.get().addFirst(bytes);
++    }
++
++    protected byte[] workingBytes;
 +    protected byte[] visibleBytes;
 +    protected final int defaultNullValue;
-+    private boolean dirty;
 +    private boolean isNullNibble;
 +
 +    public SWMRNibbleArray(final boolean isNullNibble, final int defaultNullValue) {
@@ -1650,16 +1291,96 @@ index 000000000..6a63699ae
 +    }
 +
 +    protected SWMRNibbleArray(final byte[] bytes, final int defaultNullValue) {
-+        if (bytes != null && bytes.length != SIZE) {
++        if (bytes != null && bytes.length != ARRAY_SIZE) {
 +            throw new IllegalArgumentException();
 +        }
 +        this.defaultNullValue = defaultNullValue;
-+        this.updatingBytes = bytes;
 +        this.visibleBytes = bytes != null ? bytes.clone() : null;
 +    }
 +
 +    public boolean isDirty() {
-+        return this.dirty;
++        return this.workingBytes != null;
++    }
++
++    public boolean isNullNibbleUpdating() {
++        return this.workingBytes == null && this.isNullNibble;
++    }
++
++    public boolean isNullNibbleVisible() {
++        synchronized (this) {
++            return this.isNullNibble;
++        }
++    }
++
++    public void markNonNull() {
++        synchronized (this) {
++            this.isNullNibble = false;
++        }
++    }
++
++    public boolean isInitialisedUpdating() {
++        return this.workingBytes != null || this.visibleBytes != null;
++    }
++
++    public boolean isInitialisedVisible() {
++        synchronized (this) {
++            return this.visibleBytes != null;
++        }
++    }
++
++    public void initialiseWorking() {
++        if (this.workingBytes != null) {
++            return;
++        }
++        final byte[] working = allocateBytes();
++        this.copyIntoImpl(working, 0);
++        this.workingBytes = working;
++    }
++
++    public void copyFrom(final byte[] src, final int off) {
++        if (this.workingBytes == null) {
++            this.workingBytes = allocateBytes();
++        }
++        System.arraycopy(src, off, this.workingBytes, 0, ARRAY_SIZE);
++    }
++
++    public boolean updateVisible() {
++        if (this.workingBytes == null) {
++            return false;
++
++        }
++        final byte[] oldVisible = this.visibleBytes;
++
++        synchronized (this) {
++            this.isNullNibble = false;
++
++            this.visibleBytes = this.workingBytes;
++            this.workingBytes = null;
++        }
++
++        if (oldVisible != null) {
++            freeBytes(oldVisible);
++        }
++
++        return true;
++    }
++
++    public void copyInto(final byte[] bytes, final int off) {
++        synchronized (this) {
++            this.copyIntoImpl(bytes, off);
++        }
++    }
++
++    protected void copyIntoImpl(final byte[] bytes, final int off) {
++        if (this.visibleBytes != null) {
++            System.arraycopy(this.visibleBytes, 0, bytes, off, ARRAY_SIZE);
++        } else {
++            if (this.isNullNibble && this.defaultNullValue != 0) {
++                Arrays.fill(bytes, off, off + ARRAY_SIZE, (byte)(this.defaultNullValue | (this.defaultNullValue << 4)));
++            } else {
++                Arrays.fill(bytes, off, off + ARRAY_SIZE, (byte)0);
++            }
++        }
 +    }
 +
 +    public NibbleArray asNibble() {
@@ -1668,148 +1389,61 @@ index 000000000..6a63699ae
 +        }
 +    }
 +
-+    public boolean isInitialisedUpdating() {
-+        return this.updatingBytes != null;
++    public int getUpdating(final int x, final int y, final int z) {
++        return this.getUpdating((x & 15) | ((z & 15) << 4) | ((y & 15) << 8));
 +    }
 +
-+    public boolean isInitialised() {
-+        synchronized (this) {
-+            return this.visibleBytes != null;
++    public int getUpdating(final int index) {
++        // indices range from 0 -> 4096
++        byte[] bytes = this.workingBytes == null ? this.visibleBytes : this.workingBytes;
++        if (bytes == null) {
++            return this.isNullNibble ? this.defaultNullValue : 0;
 +        }
++        final byte value = bytes[index >>> 1];
++
++        // if we are an even index, we want lower 4 bits
++        // if we are an odd index, we want upper 4 bits
++        return ((value >>> ((index & 1) << 2)) & 0xF);
 +    }
 +
-+    public boolean isNullNibble() {
-+        synchronized (this) {
-+            return this.isNullNibble;
-+        }
-+    }
-+
-+    public void markNonNull() {
-+        this.isNullNibble = false;
-+    }
-+
-+    public void zero() {
-+        if (this.updatingBytes == null) {
-+            this.updatingBytes = new byte[SIZE];
-+        } else {
-+            Arrays.fill(this.updatingBytes, (byte)0);
-+        }
-+        this.dirty = true;
-+    }
-+
-+    public void initialise() {
-+        if (this.updatingBytes != null) {
-+            return;
-+        }
-+        if (this.isNullNibble && this.defaultNullValue != 0) {
-+            if (this.defaultNullValue == 15) {
-+                this.updatingBytes = FULL_LIT.clone();
-+            } else {
-+                this.updatingBytes = new byte[SIZE];
-+                Arrays.fill(this.updatingBytes, (byte)(this.defaultNullValue | (this.defaultNullValue << 4)));
-+            }
-+            this.dirty = true;
-+        } else {
-+            this.zero();
-+        }
-+    }
-+
-+    public void copyFrom(final byte[] src) {
-+        if (src.length != SIZE) {
-+            throw new IllegalStateException("Arg length should be " + SIZE + ", not " + src.length);
-+        }
-+        if (this.updatingBytes == null) {
-+            this.updatingBytes = src.clone();
-+        } else {
-+            System.arraycopy(src, 0, this.updatingBytes, 0, SIZE);
-+        }
-+        this.dirty = true;
-+    }
-+
-+    public boolean updateVisible() {
-+        if (!this.dirty) {
-+            return false;
-+        }
-+        this.dirty = false;
-+        synchronized (this) {
-+            this.isNullNibble = false;
-+            if (this.visibleBytes == null) {
-+                this.visibleBytes = this.updatingBytes.clone();
-+            } else {
-+                System.arraycopy(this.updatingBytes, 0, this.visibleBytes, 0, SIZE);
-+            }
-+        }
-+        return true;
-+    }
-+
-+    public final int getVisible(final int x, final int y, final int z) {
++    public int getVisible(final int x, final int y, final int z) {
 +        return this.getVisible((x & 15) | ((z & 15) << 4) | ((y & 15) << 8));
 +    }
 +
-+    public synchronized final int getVisible(final int index) {
-+        // indices range from 0 -> 4096
-+        if (this.visibleBytes == null) {
-+            return this.isNullNibble ? this.defaultNullValue : 0;
-+        }
-+        final byte value = this.visibleBytes[index >>> 1];
++    public int getVisible(final int index) {
++        synchronized (this) {
++            // indices range from 0 -> 4096
++            if (this.visibleBytes == null) {
++                return this.isNullNibble ? this.defaultNullValue : 0;
++            }
++            final byte value = this.visibleBytes[index >>> 1];
 +
-+        // if we are an even index, we want lower 4 bits
-+        // if we are an odd index, we want upper 4 bits
-+        return ((value >>> ((index & 1) << 2)) & 0xF);
++            // if we are an even index, we want lower 4 bits
++            // if we are an odd index, we want upper 4 bits
++            return ((value >>> ((index & 1) << 2)) & 0xF);
++        }
 +    }
 +
-+    // all axis from [0, 15]
-+    // index = x | (z << 4) | (y << 8)
-+
-+    public final int get(final int index) {
-+        // indices range from 0 -> 4096
-+        if (this.updatingBytes == null) {
-+            return this.isNullNibble ? this.defaultNullValue : 0;
-+        }
-+        final byte value = this.updatingBytes[index >>> 1];
-+
-+        // if we are an even index, we want lower 4 bits
-+        // if we are an odd index, we want upper 4 bits
-+        return ((value >>> ((index & 1) << 2)) & 0xF);
++    public void set(final int x, final int y, final int z, final int value) {
++        this.set((x & 15) | ((z & 15) << 4) | ((y & 15) << 8), value);
 +    }
 +
-+    public final void set(final int index, final int value) {
-+        if (this.updatingBytes == null) {
-+            this.initialise();
++    public void set(final int index, final int value) {
++        if (this.workingBytes == null) {
++            this.initialiseWorking();
 +        }
 +        final int shift = (index & 1) << 2;
 +        final int i = index >>> 1;
 +
-+        this.updatingBytes[i] = (byte)((this.updatingBytes[i] & (0xF0 >>> shift)) | (value << shift));
-+        this.dirty = true;
-+    }
-+
-+    public byte[] getClone() {
-+        synchronized (this) {
-+            if (this.visibleBytes != null) {
-+                return this.visibleBytes.clone();
-+            }
-+        }
-+        return new byte[SIZE];
-+    }
-+
-+    public void copyInto(final byte[] dst, final int off) {
-+        synchronized (this) {
-+            if (this.visibleBytes != null) {
-+                System.arraycopy(this.visibleBytes, 0, dst, off, SIZE);
-+                return;
-+            }
-+        }
-+
-+        Arrays.fill(dst, off, SIZE, (byte)0);
++        this.workingBytes[i] = (byte)((this.workingBytes[i] & (0xF0 >>> shift)) | (value << shift));
 +    }
 +}
 diff --git a/src/main/java/com/tuinity/tuinity/chunk/light/SkyStarLightEngine.java b/src/main/java/com/tuinity/tuinity/chunk/light/SkyStarLightEngine.java
 new file mode 100644
-index 000000000..954d9ac31
+index 000000000..e780ae852
 --- /dev/null
 +++ b/src/main/java/com/tuinity/tuinity/chunk/light/SkyStarLightEngine.java
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,357 @@
 +package com.tuinity.tuinity.chunk.light;
 +
 +import net.minecraft.server.BlockPosition;
@@ -1933,9 +1567,7 @@ index 000000000..954d9ac31
 +        // we need to initialise nibbles up to the highest section (we don't save null nibbles)
 +        for (int y = -1; y <= Math.min(16, (highestBlockY >> 4)); ++y) {
 +            final SWMRNibbleArray nibble = this.getNibbleFromCache(chunkX, y, chunkZ);
-+            if (nibble.isNullNibble()) {
-+                nibble.initialise();
-+            }
++            nibble.markNonNull();
 +        }
 +
 +        for (final BlockPosition pos : positions) {
@@ -1967,8 +1599,8 @@ index 000000000..954d9ac31
 +                    if (nibble != null && !nibble.isDirty() && nibble.isInitialisedUpdating()) {
 +                        for (int dy = -1; dy <= 1; ++dy) {
 +                            SWMRNibbleArray ours = this.getNibbleFromCache(chunkX, dy + y, chunkZ);
-+                            if (ours != null && !ours.isInitialisedUpdating() && !ours.isDirty()) {
-+                                ours.initialise();
++                            if (ours != null && !ours.isDirty() && ours.isNullNibbleUpdating()) {
++                                ours.initialiseWorking();
 +                                ours.updateVisible();
 +                            }
 +                        }
@@ -2001,7 +1633,7 @@ index 000000000..954d9ac31
 +                    // unloaded neighbour
 +                    continue;
 +                }
-+                if (neighbourNibble.isNullNibble()) {
++                if (neighbourNibble.isNullNibbleUpdating()) {
 +                    // most of the time we fall here
 +                    // no point of propagating full light into full light
 +                    continue;
@@ -2171,10 +1803,10 @@ index 000000000..954d9ac31
 +}
 diff --git a/src/main/java/com/tuinity/tuinity/chunk/light/StarLightEngine.java b/src/main/java/com/tuinity/tuinity/chunk/light/StarLightEngine.java
 new file mode 100644
-index 000000000..1a1784814
+index 000000000..7fcbfa5c2
 --- /dev/null
 +++ b/src/main/java/com/tuinity/tuinity/chunk/light/StarLightEngine.java
-@@ -0,0 +1,1024 @@
+@@ -0,0 +1,1014 @@
 +package com.tuinity.tuinity.chunk.light;
 +
 +import com.destroystokyo.paper.util.math.IntegerUtil;
@@ -2395,8 +2027,8 @@ index 000000000..1a1784814
 +                        for (int dz = -1; dz <= 1; ++dz) {
 +                            for (int dx = -1; dx <= 1; ++dx) {
 +                                SWMRNibbleArray neighbour = this.getNibbleFromCache(chunkX + dx, chunkY + dy, chunkZ + dz);
-+                                if (neighbour != null && !neighbour.isDirty() && !neighbour.isInitialisedUpdating()) {
-+                                    neighbour.initialise();
++                                if (neighbour != null && !neighbour.isDirty() && neighbour.isNullNibbleUpdating()) {
++                                    neighbour.initialiseWorking();
 +                                    neighbour.updateVisible();
 +                                    lightAccess.markLightSectionDirty(this.skylightPropagator ? EnumSkyBlock.SKY : EnumSkyBlock.BLOCK,
 +                                            new SectionPosition(chunkX + dx, chunkY + dy, chunkZ + dz));
@@ -2438,13 +2070,13 @@ index 000000000..1a1784814
 +    protected final int getLightLevel(final int worldX, final int worldY, final int worldZ) {
 +        final SWMRNibbleArray nibble = this.nibbleCache[(worldX >> 4) + 5 * (worldZ >> 4) + (5 * 5) * (worldY >> 4) + this.chunkSectionIndexOffset];
 +
-+        return nibble == null ? 0 : nibble.get((worldX & 15) | ((worldZ & 15) << 4) | ((worldY & 15) << 8));
++        return nibble == null ? 0 : nibble.getUpdating((worldX & 15) | ((worldZ & 15) << 4) | ((worldY & 15) << 8));
 +    }
 +
 +    protected final int getLightLevel(final int sectionIndex, final int localIndex) {
 +        final SWMRNibbleArray nibble = this.nibbleCache[sectionIndex];
 +
-+        return nibble == null ? 0 : nibble.get(localIndex);
++        return nibble == null ? 0 : nibble.getUpdating(localIndex);
 +    }
 +
 +    protected final void setLightLevel(final int worldX, final int worldY, final int worldZ, final int level) {
@@ -2523,7 +2155,7 @@ index 000000000..1a1784814
 +
 +                if (!currNibble.isInitialisedUpdating() && !neighbourNibble.isInitialisedUpdating()) {
 +                    if (this.skylightPropagator) {
-+                        if (currNibble.isNullNibble() == neighbourNibble.isNullNibble()) {
++                        if (currNibble.isNullNibbleUpdating() == neighbourNibble.isNullNibbleUpdating()) {
 +                            continue;
 +                        } // else fall through to edge checks
 +                    } else {
@@ -2567,11 +2199,11 @@ index 000000000..1a1784814
 +                        final int neighbourX = currX + neighbourOffX;
 +                        final int neighbourZ = currZ + neighbourOffZ;
 +
-+                        final int currentLevel = currNibble.get((currX & 15) |
++                        final int currentLevel = currNibble.getUpdating((currX & 15) |
 +                                ((currZ & 15)) << 4 |
 +                                ((currY & 15) << 8)
 +                        );
-+                        final int neighbourLevel = neighbourNibble.get((neighbourX & 15) |
++                        final int neighbourLevel = neighbourNibble.getUpdating((neighbourX & 15) |
 +                                ((neighbourZ & 15)) << 4 |
 +                                ((currY & 15) << 8)
 +                        );
@@ -2625,7 +2257,7 @@ index 000000000..1a1784814
 +
 +                if (!neighbourNibble.isInitialisedUpdating()) {
 +                    if (this.skylightPropagator) {
-+                        if (currNibble.isNullNibble() == neighbourNibble.isNullNibble() || !neighbourNibble.isNullNibble()) {
++                        if (currNibble.isNullNibbleUpdating() == neighbourNibble.isNullNibbleUpdating() || !neighbourNibble.isNullNibbleUpdating()) {
 +                            continue;
 +                        } // else fall through to edge checks
 +                    } else {
@@ -2669,7 +2301,7 @@ index 000000000..1a1784814
 +
 +                for (int currY = currSectionY << 4, maxY = currY | 15; currY <= maxY; ++currY) {
 +                    for (int i = 0, currX = startX, currZ = startZ; i < 16; ++i, currX += incX, currZ += incZ) {
-+                        final int level = neighbourNibble.get(
++                        final int level = neighbourNibble.getUpdating(
 +                                (currX & 15) |
 +                                (currZ & 15) << 4 |
 +                                (currY & 15) << 8
@@ -2714,18 +2346,8 @@ index 000000000..1a1784814
 +        this.setBlocksForChunkInCache(chunkX, chunkZ, chunk.getSections());
 +        this.setNibblesForChunkInCache(chunkX, chunkZ, this.getNibblesOnChunk(chunk));
 +
-+        // do we need to check edges?
-+        boolean checkEdges = false;
-+
-+        for (final IChunkAccess chunkInCache : this.chunkCache) {
-+            if (chunkInCache != null && chunkInCache.wasLoadedFromDisk()) {
-+                checkEdges = true;
-+                break;
-+            }
-+        }
-+
 +        try {
-+            this.lightChunk(lightAccess, chunk, checkEdges);
++            this.lightChunk(lightAccess, chunk, false);
 +            this.updateVisible(lightAccess);
 +        } finally {
 +            this.destroyCaches();
@@ -5541,10 +5163,10 @@ index 000000000..002abb3cb
 +    }
 +}
 diff --git a/src/main/java/net/minecraft/server/AxisAlignedBB.java b/src/main/java/net/minecraft/server/AxisAlignedBB.java
-index ed9b2f9ad..d759a6c2b 100644
+index ed9b2f9ad..9fbb77e70 100644
 --- a/src/main/java/net/minecraft/server/AxisAlignedBB.java
 +++ b/src/main/java/net/minecraft/server/AxisAlignedBB.java
-@@ -13,6 +13,140 @@ public class AxisAlignedBB {
+@@ -13,6 +13,149 @@ public class AxisAlignedBB {
      public final double maxY;
      public final double maxZ;
  
@@ -5570,13 +5192,22 @@ index ed9b2f9ad..d759a6c2b 100644
 +     */
 +
 +    public final boolean voxelShapeIntersect(AxisAlignedBB other) {
-+        return this.voxelShapeIntersect(other.minX, other.minY, other.minZ, other.maxX, other.maxY, other.maxZ);
++        return (this.minX - other.maxX) < -MCUtil.COLLISION_EPSILON && (this.maxX - other.minX) > MCUtil.COLLISION_EPSILON &&
++               (this.minY - other.maxY) < -MCUtil.COLLISION_EPSILON && (this.maxY - other.minY) > MCUtil.COLLISION_EPSILON &&
++               (this.minZ - other.maxZ) < -MCUtil.COLLISION_EPSILON && (this.maxZ - other.minZ) > MCUtil.COLLISION_EPSILON;
 +    }
 +
 +    public final boolean voxelShapeIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
 +        return (this.minX - maxX) < -MCUtil.COLLISION_EPSILON && (this.maxX - minX) > MCUtil.COLLISION_EPSILON &&
 +               (this.minY - maxY) < -MCUtil.COLLISION_EPSILON && (this.maxY - minY) > MCUtil.COLLISION_EPSILON &&
 +               (this.minZ - maxZ) < -MCUtil.COLLISION_EPSILON && (this.maxZ - minZ) > MCUtil.COLLISION_EPSILON;
++    }
++
++    public static boolean voxelShapeIntersect(double minX1, double minY1, double minZ1, double maxX1, double maxY1, double maxZ1,
++                                              double minX2, double minY2, double minZ2, double maxX2, double maxY2, double maxZ2) {
++        return (minX1 - maxX2) < -MCUtil.COLLISION_EPSILON && (maxX1 - minX2) > MCUtil.COLLISION_EPSILON &&
++                (minY1 - maxY2) < -MCUtil.COLLISION_EPSILON && (maxY1 - minY2) > MCUtil.COLLISION_EPSILON &&
++                (minZ1 - maxZ2) < -MCUtil.COLLISION_EPSILON && (maxZ1 - minZ2) > MCUtil.COLLISION_EPSILON;
 +    }
 +
 +    public static double collideX(AxisAlignedBB target, AxisAlignedBB source, double source_move) {
@@ -5685,7 +5316,7 @@ index ed9b2f9ad..d759a6c2b 100644
      public AxisAlignedBB(double d0, double d1, double d2, double d3, double d4, double d5) {
          this.minX = Math.min(d0, d3);
          this.minY = Math.min(d1, d4);
-@@ -185,6 +319,7 @@ public class AxisAlignedBB {
+@@ -185,6 +328,7 @@ public class AxisAlignedBB {
          return new AxisAlignedBB(d0, d1, d2, d3, d4, d5);
      }
  
@@ -5693,7 +5324,7 @@ index ed9b2f9ad..d759a6c2b 100644
      public AxisAlignedBB d(double d0, double d1, double d2) {
          return new AxisAlignedBB(this.minX + d0, this.minY + d1, this.minZ + d2, this.maxX + d0, this.maxY + d1, this.maxZ + d2);
      }
-@@ -193,6 +328,7 @@ public class AxisAlignedBB {
+@@ -193,6 +337,7 @@ public class AxisAlignedBB {
          return new AxisAlignedBB(this.minX + (double) blockposition.getX(), this.minY + (double) blockposition.getY(), this.minZ + (double) blockposition.getZ(), this.maxX + (double) blockposition.getX(), this.maxY + (double) blockposition.getY(), this.maxZ + (double) blockposition.getZ());
      }
  
@@ -5701,7 +5332,7 @@ index ed9b2f9ad..d759a6c2b 100644
      public AxisAlignedBB c(Vec3D vec3d) {
          return this.d(vec3d.x, vec3d.y, vec3d.z);
      }
-@@ -212,6 +348,7 @@ public class AxisAlignedBB {
+@@ -212,6 +357,7 @@ public class AxisAlignedBB {
          return this.e(vec3d.x, vec3d.y, vec3d.z);
      }
  
@@ -6481,10 +6112,10 @@ index 2d887af90..2291135ea 100644
          @Override
          public BlockPosition immutableCopy() {
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index dcbae1c45..9d749dea1 100644
+index dcbae1c45..96bdb9580 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
-@@ -91,6 +91,186 @@ public class Chunk implements IChunkAccess {
+@@ -91,6 +91,175 @@ public class Chunk implements IChunkAccess {
      private final int[] inventoryEntityCounts = new int[16];
      // Paper end
  
@@ -6540,7 +6171,6 @@ index dcbae1c45..9d749dea1 100644
 +    // Tuinity start - rewrite light engine
 +    private volatile com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] blockNibbles = com.tuinity.tuinity.chunk.light.StarLightEngine.getFilledEmptyLight(false);
 +    private volatile com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] skyNibbles = com.tuinity.tuinity.chunk.light.StarLightEngine.getFilledEmptyLight(true);
-+    private volatile boolean wasLoadedFromDisk;
 +
 +    @Override
 +    public com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] getBlockNibbles() {
@@ -6560,16 +6190,6 @@ index dcbae1c45..9d749dea1 100644
 +    @Override
 +    public void setSkyNibbles(com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] nibbles) {
 +        this.skyNibbles = nibbles;
-+    }
-+
-+    @Override
-+    public void setWasLoadedFromDisk(boolean wasLoadedFromDisk) {
-+        this.wasLoadedFromDisk = wasLoadedFromDisk;
-+    }
-+
-+    @Override
-+    public boolean wasLoadedFromDisk() {
-+        return this.wasLoadedFromDisk;
 +    }
 +    // Tuinity end - rewrite light engine
 +
@@ -6671,19 +6291,18 @@ index dcbae1c45..9d749dea1 100644
      public Chunk(World world, ChunkCoordIntPair chunkcoordintpair, BiomeStorage biomestorage, ChunkConverter chunkconverter, TickList<Block> ticklist, TickList<FluidType> ticklist1, long i, @Nullable ChunkSection[] achunksection, @Nullable Consumer<Chunk> consumer) {
          this.sections = new ChunkSection[16];
          this.e = Maps.newHashMap();
-@@ -297,6 +477,11 @@ public class Chunk implements IChunkAccess {
+@@ -297,6 +466,10 @@ public class Chunk implements IChunkAccess {
  
      public Chunk(World world, ProtoChunk protochunk) {
          this(world, protochunk.getPos(), protochunk.getBiomeIndex(), protochunk.p(), protochunk.n(), protochunk.o(), protochunk.getInhabitedTime(), protochunk.getSections(), (Consumer) null);
 +        // Tuinity start - copy over protochunk light
 +        this.blockNibbles = protochunk.getBlockNibbles();
 +        this.skyNibbles = protochunk.getSkyNibbles();
-+        this.wasLoadedFromDisk = protochunk.wasLoadedFromDisk();
 +        // Tuinity end - copy over protochunk light
          Iterator iterator = protochunk.y().iterator();
  
          while (iterator.hasNext()) {
-@@ -330,7 +515,7 @@ public class Chunk implements IChunkAccess {
+@@ -330,7 +503,7 @@ public class Chunk implements IChunkAccess {
              Entry<HeightMap.Type, HeightMap> entry = (Entry) iterator.next();
  
              if (ChunkStatus.FULL.h().contains(entry.getKey())) {
@@ -6692,7 +6311,7 @@ index dcbae1c45..9d749dea1 100644
              }
          }
  
-@@ -547,6 +732,7 @@ public class Chunk implements IChunkAccess {
+@@ -547,6 +720,7 @@ public class Chunk implements IChunkAccess {
  
      @Override
      public void a(Entity entity) {
@@ -6700,7 +6319,7 @@ index dcbae1c45..9d749dea1 100644
          this.q = true;
          int i = MathHelper.floor(entity.locX() / 16.0D);
          int j = MathHelper.floor(entity.locZ() / 16.0D);
-@@ -592,8 +778,8 @@ public class Chunk implements IChunkAccess {
+@@ -592,8 +766,8 @@ public class Chunk implements IChunkAccess {
          entity.chunkX = this.loc.x;
          entity.chunkY = k;
          entity.chunkZ = this.loc.z;
@@ -6711,7 +6330,7 @@ index dcbae1c45..9d749dea1 100644
          // Paper start
          if (entity instanceof EntityItem) {
              itemCounts[k]++;
-@@ -616,6 +802,7 @@ public class Chunk implements IChunkAccess {
+@@ -616,6 +790,7 @@ public class Chunk implements IChunkAccess {
      }
  
      public void a(Entity entity, int i) {
@@ -6719,7 +6338,7 @@ index dcbae1c45..9d749dea1 100644
          if (i < 0) {
              i = 0;
          }
-@@ -630,7 +817,7 @@ public class Chunk implements IChunkAccess {
+@@ -630,7 +805,7 @@ public class Chunk implements IChunkAccess {
              entity.entitySlice = null;
              entity.inChunk = false;
          }
@@ -6728,7 +6347,7 @@ index dcbae1c45..9d749dea1 100644
              return;
          }
          if (entity instanceof EntityItem) {
-@@ -873,6 +1060,7 @@ public class Chunk implements IChunkAccess {
+@@ -873,6 +1048,7 @@ public class Chunk implements IChunkAccess {
      }
  
      public void a(@Nullable Entity entity, AxisAlignedBB axisalignedbb, List<Entity> list, @Nullable Predicate<? super Entity> predicate) {
@@ -6736,7 +6355,7 @@ index dcbae1c45..9d749dea1 100644
          int i = MathHelper.floor((axisalignedbb.minY - 2.0D) / 16.0D);
          int j = MathHelper.floor((axisalignedbb.maxY + 2.0D) / 16.0D);
  
-@@ -912,6 +1100,7 @@ public class Chunk implements IChunkAccess {
+@@ -912,6 +1088,7 @@ public class Chunk implements IChunkAccess {
      }
  
      public <T extends Entity> void a(@Nullable EntityTypes<?> entitytypes, AxisAlignedBB axisalignedbb, List<? super T> list, Predicate<? super T> predicate) {
@@ -6744,7 +6363,7 @@ index dcbae1c45..9d749dea1 100644
          int i = MathHelper.floor((axisalignedbb.minY - 2.0D) / 16.0D);
          int j = MathHelper.floor((axisalignedbb.maxY + 2.0D) / 16.0D);
  
-@@ -941,7 +1130,9 @@ public class Chunk implements IChunkAccess {
+@@ -941,7 +1118,9 @@ public class Chunk implements IChunkAccess {
  
      }
  
@@ -6755,7 +6374,7 @@ index dcbae1c45..9d749dea1 100644
          int j = MathHelper.floor((axisalignedbb.maxY + 2.0D) / 16.0D);
  
 diff --git a/src/main/java/net/minecraft/server/ChunkCache.java b/src/main/java/net/minecraft/server/ChunkCache.java
-index 8eecdcde5..ab8664ef2 100644
+index 8eecdcde5..831aaffaa 100644
 --- a/src/main/java/net/minecraft/server/ChunkCache.java
 +++ b/src/main/java/net/minecraft/server/ChunkCache.java
 @@ -1,5 +1,6 @@
@@ -6792,7 +6411,7 @@ index 8eecdcde5..ab8664ef2 100644
 +        final boolean checkOnly = true;
 +
 +        if (entity != null) {
-+            if (this.getWorldBorder().isCollidingOnBorderEdge(axisalignedbb)) {
++            if (this.getWorldBorder().isAlmostCollidingOnBorder(axisalignedbb)) {
 +                if (checkOnly) {
 +                    return true;
 +                } else {
@@ -7583,7 +7202,7 @@ index 6acb5f05a..84429f12d 100644
          try {
              boolean execChunkTask = com.destroystokyo.paper.io.chunk.ChunkTaskManager.pollChunkWaitQueue() || ChunkProviderServer.this.world.asyncChunkTaskManager.pollNextChunkTask(); // Paper
 diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
-index 8e7da2c5f..83761ddf0 100644
+index 8e7da2c5f..64dd95292 100644
 --- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 +++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 @@ -24,6 +24,14 @@ public class ChunkRegionLoader {
@@ -7606,7 +7225,7 @@ index 8e7da2c5f..83761ddf0 100644
              return fluidtype == null || fluidtype == FluidTypes.EMPTY;
          }, chunkcoordintpair, nbttagcompound1.getList("LiquidsToBeTicked", 9));
 -        boolean flag = nbttagcompound1.getBoolean("isLightOn");
-+        boolean flag = nbttagcompound1.getBoolean("isLightOn"); boolean canUseSkyLight = flag && getStatus(nbttagcompound).isAtLeastStatus(ChunkStatus.LIGHT); boolean canUseBlockLight = canUseSkyLight; // Tuinity
++        boolean flag = (!com.tuinity.tuinity.config.TuinityConfig.useNewLightEngine || nbttagcompound1.getBoolean("starlight.lit")) && nbttagcompound1.getBoolean("isLightOn"); boolean canUseSkyLight = flag && getStatus(nbttagcompound).isAtLeastStatus(ChunkStatus.LIGHT); boolean canUseBlockLight = canUseSkyLight; // Tuinity
          NBTTagList nbttaglist = nbttagcompound1.getList("Sections", 10);
          boolean flag1 = true;
          ChunkSection[] achunksection = new ChunkSection[16];
@@ -7639,14 +7258,14 @@ index 8e7da2c5f..83761ddf0 100644
          }
  
 +        // Tuinity start - correctly set nullable status for light data
-+        boolean nullbleSky = true;
++        boolean nullableSky = true;
 +        for (int y = 16; y >= -1; --y) {
 +            com.tuinity.tuinity.chunk.light.SWMRNibbleArray nibble = skyNibbles[y + 1];
-+            if (nibble.isInitialised()) {
-+                nullbleSky = false;
++            if (nibble.isInitialisedUpdating()) {
++                nullableSky = false;
 +                continue;
 +            }
-+            if (!nullbleSky) {
++            if (!nullableSky) {
 +                nibble.markNonNull();
 +            }
 +        }
@@ -7655,22 +7274,20 @@ index 8e7da2c5f..83761ddf0 100644
          long j = nbttagcompound1.getLong("InhabitedTime");
          ChunkStatus.Type chunkstatus_type = a(nbttagcompound);
          Object object;
-@@ -173,8 +199,14 @@ public class ChunkRegionLoader {
+@@ -173,8 +199,12 @@ public class ChunkRegionLoader {
              object = new Chunk(worldserver.getMinecraftWorld(), chunkcoordintpair, biomestorage, chunkconverter, (TickList) object1, (TickList) object2, j, achunksection, // Paper start - fix massive nbt memory leak due to lambda. move lambda into a container method to not leak scope. Only clone needed NBT keys.
                  createLoadEntitiesConsumer(new SafeNBTCopy(nbttagcompound1, "TileEntities", "Entities", "ChunkBukkitValues")) // Paper - move CB Chunk PDC into here
              );// Paper end
 +            ((Chunk)object).setBlockNibbles(blockNibbles); // Tuinity - replace light impl
 +            ((Chunk)object).setSkyNibbles(skyNibbles); // Tuinity - replace light impl
-+            ((Chunk)object).setWasLoadedFromDisk(true); // Tuinity - replace light impl
          } else {
              ProtoChunk protochunk = new ProtoChunk(chunkcoordintpair, chunkconverter, achunksection, protochunkticklist, protochunkticklist1, worldserver); // Paper - Anti-Xray - Add parameter
 +            protochunk.setBlockNibbles(blockNibbles); // Tuinity - replace light impl
 +            protochunk.setSkyNibbles(skyNibbles); // Tuinity - replace light impl
-+            protochunk.setWasLoadedFromDisk(true); // Tuinity - replace light impl
  
              protochunk.a(biomestorage);
              object = protochunk;
-@@ -354,14 +386,14 @@ public class ChunkRegionLoader {
+@@ -354,14 +384,14 @@ public class ChunkRegionLoader {
          NibbleArray[] skyLight = new NibbleArray[17 - (-1)];
  
          for (int i = -1; i < 17; ++i) {
@@ -7689,7 +7306,7 @@ index 8e7da2c5f..83761ddf0 100644
                  skyArray = skyArray.copy();
              }
  
-@@ -401,10 +433,10 @@ public class ChunkRegionLoader {
+@@ -401,10 +431,10 @@ public class ChunkRegionLoader {
          NBTTagCompound nbttagcompound1 = new NBTTagCompound();
  
          nbttagcompound.setInt("DataVersion", SharedConstants.getGameVersion().getWorldVersion());
@@ -7702,7 +7319,7 @@ index 8e7da2c5f..83761ddf0 100644
          nbttagcompound1.setLong("InhabitedTime", ichunkaccess.getInhabitedTime());
          nbttagcompound1.setString("Status", ichunkaccess.getChunkStatus().d());
          ChunkConverter chunkconverter = ichunkaccess.p();
-@@ -429,8 +461,8 @@ public class ChunkRegionLoader {
+@@ -429,8 +459,8 @@ public class ChunkRegionLoader {
              NibbleArray nibblearray; // block light
              NibbleArray nibblearray1; // sky light
              if (asyncsavedata == null) {
@@ -7713,7 +7330,7 @@ index 8e7da2c5f..83761ddf0 100644
              } else {
                  nibblearray = asyncsavedata.blockLight[i + 1]; // +1 to offset the -1 starting index
                  nibblearray1 = asyncsavedata.skyLight[i + 1]; // +1 to offset the -1 starting index
-@@ -444,11 +476,11 @@ public class ChunkRegionLoader {
+@@ -444,11 +474,11 @@ public class ChunkRegionLoader {
                  }
  
                  if (nibblearray != null && !nibblearray.c()) {
@@ -7727,6 +7344,15 @@ index 8e7da2c5f..83761ddf0 100644
                  }
  
                  nbttaglist.add(nbttagcompound2);
+@@ -457,7 +487,7 @@ public class ChunkRegionLoader {
+ 
+         nbttagcompound1.set("Sections", nbttaglist);
+         if (flag) {
+-            nbttagcompound1.setBoolean("isLightOn", true);
++            nbttagcompound1.setBoolean("isLightOn", true); if (com.tuinity.tuinity.config.TuinityConfig.useNewLightEngine) nbttagcompound1.setBoolean("starlight.lit", true); // Tuinity
+         }
+ 
+         BiomeStorage biomestorage = ichunkaccess.getBiomeIndex();
 diff --git a/src/main/java/net/minecraft/server/ChunkSection.java b/src/main/java/net/minecraft/server/ChunkSection.java
 index e52df8096..ea943e44a 100644
 --- a/src/main/java/net/minecraft/server/ChunkSection.java
@@ -7904,7 +7530,7 @@ index 550232cb3..229c3b0f0 100644
                      throwable = throwable1;
                      throw throwable1;
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 0c952fea3..152f3cc5b 100644
+index 0c952fea3..677188661 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
 @@ -136,7 +136,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
@@ -8058,7 +7684,7 @@ index 0c952fea3..152f3cc5b 100644
      }
  
      protected BlockPosition ap() {
-@@ -815,6 +893,132 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -815,6 +893,135 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return d0;
      }
  
@@ -8157,6 +7783,9 @@ index 0c952fea3..152f3cc5b 100644
 +                collisionBox = currBoundingBox.expand(moveVector.x, moveVector.y, moveVector.z);
 +            }
 +            world.getCollisions(this, collisionBox, potentialCollisions, this instanceof EntityPlayer && !this.world.paperConfig.preventMovingIntoUnloadedChunks);
++            if (world.getWorldBorder().isCollidingWithBorderEdge(collisionBox)) {
++                VoxelShapes.addBoxesToIfIntersects(world.getWorldBorder().getCollisionShape(), collisionBox, potentialCollisions);
++            }
 +
 +            Vec3D limitedMoveVector = Entity.performCollisions(moveVector, currBoundingBox, potentialCollisions);
 +
@@ -8191,7 +7820,7 @@ index 0c952fea3..152f3cc5b 100644
      private Vec3D g(Vec3D vec3d) {
          AxisAlignedBB axisalignedbb = this.getBoundingBox();
          VoxelShapeCollision voxelshapecollision = VoxelShapeCollision.a(this);
-@@ -850,6 +1054,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -850,6 +1057,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return vec3d1;
      }
  
@@ -8199,7 +7828,7 @@ index 0c952fea3..152f3cc5b 100644
      public static double c(Vec3D vec3d) {
          return vec3d.x * vec3d.x + vec3d.z * vec3d.z;
      }
-@@ -962,18 +1167,34 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -962,18 +1170,34 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
      }
  
      protected void checkBlockCollisions() {
@@ -8237,7 +7866,7 @@ index 0c952fea3..152f3cc5b 100644
                          try {
                              iblockdata.a(this.world, blockposition_mutableblockposition, this);
                              this.a(iblockdata);
-@@ -987,6 +1208,11 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -987,6 +1211,11 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
                      }
                  }
              }
@@ -8249,7 +7878,7 @@ index 0c952fea3..152f3cc5b 100644
          }
  
      }
-@@ -1358,6 +1584,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1358,6 +1587,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return d3 * d3 + d4 * d4 + d5 * d5;
      }
  
@@ -8257,7 +7886,7 @@ index 0c952fea3..152f3cc5b 100644
      public double h(Entity entity) {
          return this.e(entity.getPositionVector());
      }
-@@ -1938,9 +2165,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1938,9 +2168,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              float f1 = this.size.width * 0.8F;
              AxisAlignedBB axisalignedbb = AxisAlignedBB.g((double) f1, 0.10000000149011612D, (double) f1).d(this.locX(), this.getHeadY(), this.locZ());
  
@@ -8269,7 +7898,7 @@ index 0c952fea3..152f3cc5b 100644
          }
      }
  
-@@ -1948,11 +2175,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1948,11 +2178,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return EnumInteractionResult.PASS;
      }
  
@@ -8285,7 +7914,7 @@ index 0c952fea3..152f3cc5b 100644
          return false;
      }
  
-@@ -3294,12 +3523,16 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -3294,12 +3526,16 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          return this.locBlock;
      }
  
@@ -8302,7 +7931,7 @@ index 0c952fea3..152f3cc5b 100644
      }
  
      public void setMot(double d0, double d1, double d2) {
-@@ -3354,7 +3587,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -3354,7 +3590,9 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          }
          // Paper end
          if (this.loc.x != d0 || this.loc.y != d1 || this.loc.z != d2) {
@@ -8675,10 +8304,10 @@ index c4a83448e..5c3eb4fc7 100644
              Vec3D vec3d1 = raytrace1.a();
              VoxelShape voxelshape = raytrace1.a(iblockdata, this, blockposition);
 diff --git a/src/main/java/net/minecraft/server/IChunkAccess.java b/src/main/java/net/minecraft/server/IChunkAccess.java
-index 180b6b58d..752d9402e 100644
+index 180b6b58d..46f9ca664 100644
 --- a/src/main/java/net/minecraft/server/IChunkAccess.java
 +++ b/src/main/java/net/minecraft/server/IChunkAccess.java
-@@ -24,6 +24,30 @@ public interface IChunkAccess extends IBlockAccess, IStructureAccess {
+@@ -24,6 +24,22 @@ public interface IChunkAccess extends IBlockAccess, IStructureAccess {
      }
      // Paper end
  
@@ -8696,20 +8325,12 @@ index 180b6b58d..752d9402e 100644
 +    default void setSkyNibbles(com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] nibbles) {
 +        throw new UnsupportedOperationException(this.getClass().getName());
 +    }
-+
-+    default boolean wasLoadedFromDisk() {
-+        throw new UnsupportedOperationException(this.getClass().getName());
-+    }
-+
-+    default void setWasLoadedFromDisk(boolean value) {
-+        throw new UnsupportedOperationException(this.getClass().getName());
-+    }
 +    // Tuinity end
 +
      IBlockData getType(final int x, final int y, final int z); // Paper
      @Nullable
      IBlockData setType(BlockPosition blockposition, IBlockData iblockdata, boolean flag);
-@@ -122,6 +146,7 @@ public interface IChunkAccess extends IBlockAccess, IStructureAccess {
+@@ -122,6 +138,7 @@ public interface IChunkAccess extends IBlockAccess, IStructureAccess {
      @Nullable
      NBTTagCompound j(BlockPosition blockposition);
  
@@ -8717,7 +8338,7 @@ index 180b6b58d..752d9402e 100644
      Stream<BlockPosition> m();
  
      TickList<Block> n();
-@@ -142,6 +167,7 @@ public interface IChunkAccess extends IBlockAccess, IStructureAccess {
+@@ -142,6 +159,7 @@ public interface IChunkAccess extends IBlockAccess, IStructureAccess {
          return ashortlist[i];
      }
  
@@ -8888,7 +8509,7 @@ index b98e60772..e0bbfe142 100644
              while (objectiterator.hasNext()) {
                  entry = (Entry) objectiterator.next();
 diff --git a/src/main/java/net/minecraft/server/LightEngineThreaded.java b/src/main/java/net/minecraft/server/LightEngineThreaded.java
-index 2f9c97dd4..ed728e401 100644
+index 2f9c97dd4..d4902ed0d 100644
 --- a/src/main/java/net/minecraft/server/LightEngineThreaded.java
 +++ b/src/main/java/net/minecraft/server/LightEngineThreaded.java
 @@ -2,6 +2,11 @@ package net.minecraft.server;
@@ -8903,7 +8524,7 @@ index 2f9c97dd4..ed728e401 100644
  import it.unimi.dsi.fastutil.objects.ObjectArrayList;
  import it.unimi.dsi.fastutil.objects.ObjectList;
  import it.unimi.dsi.fastutil.objects.ObjectListIterator;
-@@ -156,13 +161,245 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
+@@ -156,12 +161,244 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
      private volatile int f = 5;
      private final AtomicBoolean g = new AtomicBoolean();
  
@@ -9017,8 +8638,8 @@ index 2f9c97dd4..ed728e401 100644
 +        } else {
 +            this.holdingChunks.put(coordinate, current + 1);
 +        }
-     }
- 
++    }
++
 +    protected final void releaseLightWorkChunk(int chunkX, int chunkZ) {
 +        final long coordinate = MCUtil.getCoordinateKey(chunkX, chunkZ);
 +        final int current = this.holdingChunks.get(coordinate);
@@ -9143,12 +8764,11 @@ index 2f9c97dd4..ed728e401 100644
 +        int var2 = this.skyReader.b(var0) - var1;
 +        int var3 = this.blockReader.b(var0);
 +        return Math.max(var3, var2);
-+    }
+     }
 +    // Tuinity end - replace light engine impl
-+
+ 
      public void close() {}
  
-     @Override
 @@ -179,6 +416,15 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
      public void a(BlockPosition blockposition) {
          BlockPosition blockposition1 = blockposition.immutableCopy();
@@ -9233,7 +8853,21 @@ index 2f9c97dd4..ed728e401 100644
          this.a(chunkcoordintpair.x, chunkcoordintpair.z, () -> {
              return 0;
          }, LightEngineThreaded.Update.PRE_UPDATE, SystemUtils.a(() -> {
-@@ -277,6 +549,7 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
+@@ -264,6 +536,13 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
+     public CompletableFuture<IChunkAccess> a(IChunkAccess ichunkaccess, boolean flag) {
+         ChunkCoordIntPair chunkcoordintpair = ichunkaccess.getPos();
+ 
++        // Tuinity start - rewrite light engine
++        if (flag && this.theLightEngine != null) {
++            this.d.c(chunkcoordintpair);
++            return CompletableFuture.completedFuture(ichunkaccess);
++        }
++        // Tuinity end - rewrite light engine
++
+         // Paper start
+         //ichunkaccess.b(false); // Don't need to disable this
+         long pair = chunkcoordintpair.pair();
+@@ -277,6 +556,7 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
                  return;
              }
              // Paper end
@@ -9241,22 +8875,21 @@ index 2f9c97dd4..ed728e401 100644
              ChunkSection[] achunksection = ichunkaccess.getSections();
  
              for (int i = 0; i < 16; ++i) {
-@@ -293,6 +566,13 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
+@@ -293,16 +573,19 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
                      super.a(blockposition, ichunkaccess.g(blockposition));
                  });
              }
 +            } else { // Tuinity start - replace light engine impl
-+                if (flag) {
-+                    this.theLightEngine.checkChunkEdges(chunkcoordintpair.x, chunkcoordintpair.z);
-+                } else {
-+                    this.theLightEngine.lightChunk(chunkcoordintpair.x, chunkcoordintpair.z);
-+                }
++                this.theLightEngine.lightChunk(chunkcoordintpair.x, chunkcoordintpair.z);
 +            } // Tuinity end - replace light engine impl
  
              // this.d.c(chunkcoordintpair); // Paper - move into post task below
          }, () -> {
-@@ -302,7 +582,7 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
-             this.d.c(chunkcoordintpair); // Paper - release light tickets as post task to ensure they stay loaded until fully done
+             return "lightChunk " + chunkcoordintpair + " " + flag;
+             // Paper start  - merge the 2 together
+         }), () -> {
+-            this.d.c(chunkcoordintpair); // Paper - release light tickets as post task to ensure they stay loaded until fully done
++            this.d.c(chunkcoordintpair); // Paper - release light tickets as post task to ensure they stay loaded until fully done // Tuinity - diff on change, copied to top of method for early return if the chunk is already lit
              if (skippedPre[0]) return; // Paper - future's already complete
              ichunkaccess.b(true);
 -            super.b(chunkcoordintpair, false);
@@ -9264,7 +8897,7 @@ index 2f9c97dd4..ed728e401 100644
              // Paper start
              future.complete(ichunkaccess);
          });
-@@ -311,7 +591,7 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
+@@ -311,7 +594,7 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
      }
  
      public void queueUpdate() {
@@ -9273,7 +8906,7 @@ index 2f9c97dd4..ed728e401 100644
              this.b.a((() -> { // Paper - decompile error
                  this.b();
                  this.g.set(false);
-@@ -325,17 +605,36 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
+@@ -325,17 +608,36 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
      private final java.util.List<Runnable> pre = new java.util.ArrayList<>();
      private final java.util.List<Runnable> post = new java.util.ArrayList<>();
      private void b() {
@@ -11368,17 +11001,16 @@ index 485b609bb..614cfacb1 100644
              this.player.playerConnection.sendPacket(new PacketPlayOutBlockChange(this.world, blockposition)); // CraftBukkit - SPIGOT-5196
          }
 diff --git a/src/main/java/net/minecraft/server/ProtoChunk.java b/src/main/java/net/minecraft/server/ProtoChunk.java
-index 5b0cd414c..2c78cbffb 100644
+index 5b0cd414c..e2500821d 100644
 --- a/src/main/java/net/minecraft/server/ProtoChunk.java
 +++ b/src/main/java/net/minecraft/server/ProtoChunk.java
-@@ -48,6 +48,42 @@ public class ProtoChunk implements IChunkAccess {
+@@ -48,6 +48,31 @@ public class ProtoChunk implements IChunkAccess {
      private volatile boolean u;
      final World world; // Paper - Anti-Xray - Add world // Paper - private -> default
  
 +    // Tuinity start - rewrite light engine
 +    private volatile com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] blockNibbles = com.tuinity.tuinity.chunk.light.StarLightEngine.getFilledEmptyLight(false);
 +    private volatile com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] skyNibbles = com.tuinity.tuinity.chunk.light.StarLightEngine.getFilledEmptyLight(true);
-+    private volatile boolean wasLoadedFromDisk;
 +
 +    @Override
 +    public com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] getBlockNibbles() {
@@ -11399,22 +11031,12 @@ index 5b0cd414c..2c78cbffb 100644
 +    public void setSkyNibbles(com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] nibbles) {
 +        this.skyNibbles = nibbles;
 +    }
-+
-+    @Override
-+    public void setWasLoadedFromDisk(boolean wasLoadedFromDisk) {
-+        this.wasLoadedFromDisk = wasLoadedFromDisk;
-+    }
-+
-+    @Override
-+    public boolean wasLoadedFromDisk() {
-+        return this.wasLoadedFromDisk;
-+    }
 +    // Tuinity end - rewrite light engine
 +
      // Paper start - Anti-Xray - Add world
      @Deprecated public ProtoChunk(ChunkCoordIntPair chunkcoordintpair, ChunkConverter chunkconverter) { this(chunkcoordintpair, chunkconverter, null); } // Notice for updates: Please make sure this constructor isn't used anywhere
      public ProtoChunk(ChunkCoordIntPair chunkcoordintpair, ChunkConverter chunkconverter, World world) {
-@@ -173,20 +209,17 @@ public class ProtoChunk implements IChunkAccess {
+@@ -173,20 +198,17 @@ public class ProtoChunk implements IChunkAccess {
                  ChunkSection chunksection = this.a(j >> 4);
                  IBlockData iblockdata1 = chunksection.setType(i & 15, j & 15, k & 15, iblockdata);
  
@@ -11429,17 +11051,17 @@ index 5b0cd414c..2c78cbffb 100644
 +                HeightMap.Type[] enumset = this.getChunkStatus().heightMaps; // Tuinity - reduce iterator creation
                  EnumSet<HeightMap.Type> enumset1 = null;
 -                Iterator iterator = enumset.iterator();
+-
+-                HeightMap.Type heightmap_type;
 +                // Tuinity - reduce iterator creation
  
--                HeightMap.Type heightmap_type;
--
 -                while (iterator.hasNext()) {
 -                    heightmap_type = (HeightMap.Type) iterator.next();
 +                for (HeightMap.Type heightmap_type : enumset) { // Tuinity - reduce iterator creation
                      HeightMap heightmap = (HeightMap) this.f.get(heightmap_type);
  
                      if (heightmap == null) {
-@@ -202,10 +235,9 @@ public class ProtoChunk implements IChunkAccess {
+@@ -202,10 +224,9 @@ public class ProtoChunk implements IChunkAccess {
                      HeightMap.a(this, enumset1);
                  }
  
@@ -11454,10 +11076,10 @@ index 5b0cd414c..2c78cbffb 100644
                  }
  
 diff --git a/src/main/java/net/minecraft/server/ProtoChunkExtension.java b/src/main/java/net/minecraft/server/ProtoChunkExtension.java
-index 300cbb8b0..211d9fa90 100644
+index 300cbb8b0..60c57a2b5 100644
 --- a/src/main/java/net/minecraft/server/ProtoChunkExtension.java
 +++ b/src/main/java/net/minecraft/server/ProtoChunkExtension.java
-@@ -8,7 +8,39 @@ import javax.annotation.Nullable;
+@@ -8,7 +8,29 @@ import javax.annotation.Nullable;
  
  public class ProtoChunkExtension extends ProtoChunk {
  
@@ -11483,16 +11105,6 @@ index 300cbb8b0..211d9fa90 100644
 +    @Override
 +    public void setSkyNibbles(com.tuinity.tuinity.chunk.light.SWMRNibbleArray[] nibbles) {
 +        this.getWrappedChunk().setSkyNibbles(nibbles);
-+    }
-+
-+    @Override
-+    public boolean wasLoadedFromDisk() {
-+        return this.getWrappedChunk().wasLoadedFromDisk();
-+    }
-+
-+    @Override
-+    public void setWasLoadedFromDisk(boolean wasLoadedFromDisk) {
-+        this.getWrappedChunk().setWasLoadedFromDisk(wasLoadedFromDisk);
 +    }
 +    // Tuinity end - rewrite light engine
  
@@ -13729,41 +13341,57 @@ index 9ed21f434..59abca0fd 100644
      public abstract Entity getEntity(int i);
  
 diff --git a/src/main/java/net/minecraft/server/WorldBorder.java b/src/main/java/net/minecraft/server/WorldBorder.java
-index f01186988..26a8c4ffe 100644
+index f01186988..0d10d317c 100644
 --- a/src/main/java/net/minecraft/server/WorldBorder.java
 +++ b/src/main/java/net/minecraft/server/WorldBorder.java
-@@ -47,11 +47,43 @@ public class WorldBorder {
+@@ -47,11 +47,59 @@ public class WorldBorder {
          return axisalignedbb.maxX > this.e() && axisalignedbb.minX < this.g() && axisalignedbb.maxZ > this.f() && axisalignedbb.minZ < this.h();
      }
  
 +    // Tuinity start - optimise collisions
-+    // determines whether we are colliding with one of the wordborder faces.
-+    public final boolean isCollidingOnBorderEdge(AxisAlignedBB boundingBox) {
-+        return this.isCollidingOnBorderEdge(boundingBox.minX, boundingBox.maxX, boundingBox.minZ, boundingBox.maxZ);
++    // determines whether we are almost colliding with the world border
++    // for clear collisions, this rets false
++    public final boolean isAlmostCollidingOnBorder(AxisAlignedBB boundingBox) {
++        return this.isAlmostCollidingOnBorder(boundingBox.minX, boundingBox.maxX, boundingBox.minZ, boundingBox.maxZ);
 +    }
 +
-+    public final boolean isCollidingOnBorderEdge(double boxMinX, double boxMaxX, double boxMinZ, double boxMaxZ) {
-+        double minX = this.getMinX() - MCUtil.COLLISION_EPSILON;
-+        double maxX = this.getMaxX() + MCUtil.COLLISION_EPSILON;
++    public final boolean isAlmostCollidingOnBorder(double boxMinX, double boxMaxX, double boxMinZ, double boxMaxZ) {
++        double borderMinX = this.getMinX();
++        double borderMaxX = this.getMaxX();
 +
-+        double minZ = this.getMinZ() - MCUtil.COLLISION_EPSILON;
-+        double maxZ = this.getMaxZ() + MCUtil.COLLISION_EPSILON;
++        double borderMinZ = this.getMinZ();
++        double borderMaxZ = this.getMaxZ();
 +
 +        return
-+                // First, check if the worldborder is enclosing the specified box.
-+                // We check this first as it's most likely to fail.
-+                !(minX < boxMinX && maxX > boxMaxX && minZ < boxMinZ && maxZ > boxMaxZ)
++                // Not intersecting if we're smaller
++                !AxisAlignedBB.voxelShapeIntersect(
++                        boxMinX + MCUtil.COLLISION_EPSILON, Double.NEGATIVE_INFINITY, boxMinZ + MCUtil.COLLISION_EPSILON,
++                                boxMaxX - MCUtil.COLLISION_EPSILON, Double.POSITIVE_INFINITY, boxMaxZ - MCUtil.COLLISION_EPSILON,
++                        borderMinX, Double.NEGATIVE_INFINITY, borderMinZ, borderMaxX, Double.POSITIVE_INFINITY, borderMaxZ
++                )
 +                &&
 +
-+                // Now we verify if we're even intersecting.
-+                (minX < boxMaxX && maxX > boxMinX && minZ < boxMaxZ && maxZ > boxMinZ)
-+                &&
-+
-+                // Now verify that the worldborder isn't being enclosed.
-+                // This is never expected to happen, but is left here to ensure our logic
-+                // is right 100% of the time.
-+                !(boxMinX < minX && boxMaxX > maxX && boxMinZ < minZ && boxMaxZ > maxZ)
++                // Are intersecting if we're larger
++                AxisAlignedBB.voxelShapeIntersect(
++                        boxMinX - MCUtil.COLLISION_EPSILON, Double.NEGATIVE_INFINITY, boxMinZ - MCUtil.COLLISION_EPSILON,
++                                boxMaxX + MCUtil.COLLISION_EPSILON, Double.POSITIVE_INFINITY, boxMaxZ + MCUtil.COLLISION_EPSILON,
++                        borderMinX, Double.NEGATIVE_INFINITY, borderMinZ, borderMaxX, Double.POSITIVE_INFINITY, borderMaxZ
++                )
 +                ;
++    }
++
++    public final boolean isCollidingWithBorderEdge(AxisAlignedBB boundingBox) {
++        return this.isCollidingWithBorderEdge(boundingBox.minX, boundingBox.maxX, boundingBox.minZ, boundingBox.maxZ);
++    }
++
++    public final boolean isCollidingWithBorderEdge(double boxMinX, double boxMaxX, double boxMinZ, double boxMaxZ) {
++        double borderMinX = this.getMinX() + MCUtil.COLLISION_EPSILON;
++        double borderMaxX = this.getMaxX() - MCUtil.COLLISION_EPSILON;
++
++        double borderMinZ = this.getMinZ() + MCUtil.COLLISION_EPSILON;
++        double borderMaxZ = this.getMaxZ() - MCUtil.COLLISION_EPSILON;
++
++        return boxMinX < borderMinX || boxMaxX > borderMaxX || boxMinZ < borderMinZ || boxMaxZ > borderMaxZ;
 +    }
 +    // Tuinity end - optimise collisions
 +
@@ -13776,7 +13404,7 @@ index f01186988..26a8c4ffe 100644
      public VoxelShape c() {
          return this.j.m();
      }
-@@ -67,18 +99,22 @@ public class WorldBorder {
+@@ -67,18 +115,22 @@ public class WorldBorder {
          return Math.min(d6, d3);
      }
  
@@ -13800,7 +13428,7 @@ index f01186988..26a8c4ffe 100644
          return this.j.d();
      }
 diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
-index 5b0b6edfa..2155fa1b1 100644
+index 5b0b6edfa..bb310c745 100644
 --- a/src/main/java/net/minecraft/server/WorldServer.java
 +++ b/src/main/java/net/minecraft/server/WorldServer.java
 @@ -55,12 +55,13 @@ import org.bukkit.event.server.MapInitializeEvent;
@@ -13991,7 +13619,7 @@ index 5b0b6edfa..2155fa1b1 100644
 +        boolean ret = false;
 +
 +        if (entity != null) {
-+            if (this.getWorldBorder().isCollidingOnBorderEdge(axisalignedbb)) {
++            if (this.getWorldBorder().isAlmostCollidingOnBorder(axisalignedbb)) {
 +                if (checkOnly) {
 +                    return true;
 +                } else {
@@ -14730,7 +14358,7 @@ index 4e1b4d7cd..9bf854b5a 100644
          public void restart() {
              org.spigotmc.RestartCommand.restart();
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 299f57ca2..4de6252f0 100644
+index b71316cce..ae2cc01c1 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -341,6 +341,14 @@ public class CraftWorld implements World {
@@ -14772,7 +14400,7 @@ index 299f57ca2..4de6252f0 100644
          }
  
          return true;
-@@ -2536,7 +2538,7 @@ public class CraftWorld implements World {
+@@ -2553,7 +2555,7 @@ public class CraftWorld implements World {
          }
          return this.world.getChunkProvider().getChunkAtAsynchronously(x, z, gen, urgent).thenComposeAsync((either) -> {
              net.minecraft.server.Chunk chunk = (net.minecraft.server.Chunk) either.left().orElse(null);
