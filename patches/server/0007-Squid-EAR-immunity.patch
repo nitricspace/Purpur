@@ -5,25 +5,23 @@ Subject: [PATCH] Squid EAR immunity
 
 
 diff --git a/src/main/java/net/pl3x/purpur/PurpurWorldConfig.java b/src/main/java/net/pl3x/purpur/PurpurWorldConfig.java
-index d129afcf1..12bcc09ad 100644
+index 6e97c5342..d94a54fab 100644
 --- a/src/main/java/net/pl3x/purpur/PurpurWorldConfig.java
 +++ b/src/main/java/net/pl3x/purpur/PurpurWorldConfig.java
-@@ -62,7 +62,12 @@ public class PurpurWorldConfig {
-         fixClimbingBypassingCrammingRule = getBoolean("gameplay-mechanics.fix-climbing-bypassing-cramming-rule", fixClimbingBypassingCrammingRule);
+@@ -57,6 +57,11 @@ public class PurpurWorldConfig {
+         return PurpurConfig.config.getString("world-settings." + worldName + "." + path, PurpurConfig.config.getString("world-settings.default." + path));
      }
  
--        public int villagerBrainTicks = 1;
 +    public boolean squidImmuneToEAR = true;
 +    private void squidSettings() {
 +        squidImmuneToEAR = getBoolean("mobs.squid.immune-to-EAR", squidImmuneToEAR);
 +    }
 +
-+    public int villagerBrainTicks = 1;
+     public int villagerBrainTicks = 1;
      public boolean villagerUseBrainTicksOnlyWhenLagging = true;
      private void villagerSettings() {
-         villagerBrainTicks = getInt("mobs.villager.brain-ticks", villagerBrainTicks);
 diff --git a/src/main/java/org/spigotmc/ActivationRange.java b/src/main/java/org/spigotmc/ActivationRange.java
-index 0b93635ba..86825f172 100644
+index 6d382c192..214819dfb 100644
 --- a/src/main/java/org/spigotmc/ActivationRange.java
 +++ b/src/main/java/org/spigotmc/ActivationRange.java
 @@ -377,6 +377,7 @@ public class ActivationRange

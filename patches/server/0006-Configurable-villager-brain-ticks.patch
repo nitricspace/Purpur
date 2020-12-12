@@ -5,7 +5,7 @@ Subject: [PATCH] Configurable villager brain ticks
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityVillager.java b/src/main/java/net/minecraft/server/EntityVillager.java
-index 0388d1099..a02f54ab3 100644
+index 2919d78dd..4671d1358 100644
 --- a/src/main/java/net/minecraft/server/EntityVillager.java
 +++ b/src/main/java/net/minecraft/server/EntityVillager.java
 @@ -58,6 +58,7 @@ public class EntityVillager extends EntityVillagerAbstract implements Reputation

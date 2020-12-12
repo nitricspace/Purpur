@@ -5,7 +5,7 @@ Subject: [PATCH] Populator seed controls
 
 
 diff --git a/src/main/java/co/aikar/timings/TimingsExport.java b/src/main/java/co/aikar/timings/TimingsExport.java
-index dae2e5d70..55b67f105 100644
+index f76958a35..308e05836 100644
 --- a/src/main/java/co/aikar/timings/TimingsExport.java
 +++ b/src/main/java/co/aikar/timings/TimingsExport.java
 @@ -293,7 +293,7 @@ public class TimingsExport extends Thread {
@@ -50,7 +50,7 @@ index 42ce3b802..03e4d9d8b 100644
  }
 \ No newline at end of file
 diff --git a/src/main/java/net/minecraft/server/BiomeBase.java b/src/main/java/net/minecraft/server/BiomeBase.java
-index 0854ac9ef..df6874c1c 100644
+index 0c48e315c..a9e3bef23 100644
 --- a/src/main/java/net/minecraft/server/BiomeBase.java
 +++ b/src/main/java/net/minecraft/server/BiomeBase.java
 @@ -189,6 +189,10 @@ public final class BiomeBase {
