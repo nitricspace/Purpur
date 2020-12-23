@@ -5,10 +5,10 @@ Subject: [PATCH] Lagging threshold
 
 
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index 464b2161..3afe448d 100644
+index fecd7b14..efc7c674 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
-@@ -1808,4 +1808,15 @@ public final class Bukkit {
+@@ -1817,4 +1817,15 @@ public final class Bukkit {
      public static Server.Spigot spigot() {
          return server.spigot();
      }
@@ -25,10 +25,10 @@ index 464b2161..3afe448d 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index 49343ce9..152dda5f 100644
+index c69143ba..a04c1b29 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
-@@ -1595,4 +1595,13 @@ public interface Server extends PluginMessageRecipient {
+@@ -1602,4 +1602,13 @@ public interface Server extends PluginMessageRecipient {
      @NotNull
      com.destroystokyo.paper.entity.ai.MobGoals getMobGoals();
      // Paper end

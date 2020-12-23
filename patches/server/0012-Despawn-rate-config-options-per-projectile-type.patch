@@ -6,7 +6,7 @@ Subject: [PATCH] Despawn rate config options per projectile type
 Default values of -1 respect vanilla behaviour.
 
 diff --git a/src/main/java/net/minecraft/server/EntityArrow.java b/src/main/java/net/minecraft/server/EntityArrow.java
-index 78a3fd036..41d0ccb89 100644
+index 1e7f5957d..7f89b269e 100644
 --- a/src/main/java/net/minecraft/server/EntityArrow.java
 +++ b/src/main/java/net/minecraft/server/EntityArrow.java
 @@ -23,7 +23,7 @@ public abstract class EntityArrow extends IProjectile {
@@ -48,7 +48,7 @@ index 78a3fd036..41d0ccb89 100644
  
      private void A() {
 diff --git a/src/main/java/net/minecraft/server/EntityDragonFireball.java b/src/main/java/net/minecraft/server/EntityDragonFireball.java
-index 3461a632a..804633c4a 100644
+index 27032abad..9d2d5be5e 100644
 --- a/src/main/java/net/minecraft/server/EntityDragonFireball.java
 +++ b/src/main/java/net/minecraft/server/EntityDragonFireball.java
 @@ -75,4 +75,11 @@ public class EntityDragonFireball extends EntityFireball {
@@ -64,7 +64,7 @@ index 3461a632a..804633c4a 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/EntityEgg.java b/src/main/java/net/minecraft/server/EntityEgg.java
-index 8b8076e4e..807f4b441 100644
+index edce89169..4951abdfa 100644
 --- a/src/main/java/net/minecraft/server/EntityEgg.java
 +++ b/src/main/java/net/minecraft/server/EntityEgg.java
 @@ -87,4 +87,11 @@ public class EntityEgg extends EntityProjectileThrowable {
@@ -80,7 +80,7 @@ index 8b8076e4e..807f4b441 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/EntityEnderPearl.java b/src/main/java/net/minecraft/server/EntityEnderPearl.java
-index 458f497c1..30a8b48d8 100644
+index 63b4a449b..e8650c1bf 100644
 --- a/src/main/java/net/minecraft/server/EntityEnderPearl.java
 +++ b/src/main/java/net/minecraft/server/EntityEnderPearl.java
 @@ -106,4 +106,11 @@ public class EntityEnderPearl extends EntityProjectileThrowable {
@@ -96,7 +96,7 @@ index 458f497c1..30a8b48d8 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/EntityFireworks.java b/src/main/java/net/minecraft/server/EntityFireworks.java
-index f10a17ec4..8d332f419 100644
+index a646dc9f0..9789d480a 100644
 --- a/src/main/java/net/minecraft/server/EntityFireworks.java
 +++ b/src/main/java/net/minecraft/server/EntityFireworks.java
 @@ -298,4 +298,11 @@ public class EntityFireworks extends IProjectile {
@@ -112,7 +112,7 @@ index f10a17ec4..8d332f419 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/EntityFishingHook.java b/src/main/java/net/minecraft/server/EntityFishingHook.java
-index 06ada8ada..86a19cb70 100644
+index 519df0002..6891e61bc 100644
 --- a/src/main/java/net/minecraft/server/EntityFishingHook.java
 +++ b/src/main/java/net/minecraft/server/EntityFishingHook.java
 @@ -576,4 +576,11 @@ public class EntityFishingHook extends IProjectile {
@@ -128,7 +128,7 @@ index 06ada8ada..86a19cb70 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/EntityLargeFireball.java b/src/main/java/net/minecraft/server/EntityLargeFireball.java
-index 62d61dd0c..5307f4f0b 100644
+index b4b0dfbc7..d12de20cf 100644
 --- a/src/main/java/net/minecraft/server/EntityLargeFireball.java
 +++ b/src/main/java/net/minecraft/server/EntityLargeFireball.java
 @@ -66,4 +66,11 @@ public class EntityLargeFireball extends EntityFireballFireball {
@@ -160,7 +160,7 @@ index 7636a51a7..3e6438c97 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/EntityPotion.java b/src/main/java/net/minecraft/server/EntityPotion.java
-index 32ad2b0c9..3be366485 100644
+index d57da221c..6d4b1e58d 100644
 --- a/src/main/java/net/minecraft/server/EntityPotion.java
 +++ b/src/main/java/net/minecraft/server/EntityPotion.java
 @@ -240,4 +240,11 @@ public class EntityPotion extends EntityProjectileThrowable {
@@ -176,7 +176,7 @@ index 32ad2b0c9..3be366485 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/EntityShulkerBullet.java b/src/main/java/net/minecraft/server/EntityShulkerBullet.java
-index 7e37605e3..7ad68e46e 100644
+index 23017b548..0b16473ae 100644
 --- a/src/main/java/net/minecraft/server/EntityShulkerBullet.java
 +++ b/src/main/java/net/minecraft/server/EntityShulkerBullet.java
 @@ -313,4 +313,11 @@ public class EntityShulkerBullet extends IProjectile {
@@ -192,7 +192,7 @@ index 7e37605e3..7ad68e46e 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/EntitySmallFireball.java b/src/main/java/net/minecraft/server/EntitySmallFireball.java
-index 8b41d4943..014d591b8 100644
+index 350e92ac9..4ed7a20bf 100644
 --- a/src/main/java/net/minecraft/server/EntitySmallFireball.java
 +++ b/src/main/java/net/minecraft/server/EntitySmallFireball.java
 @@ -86,4 +86,11 @@ public class EntitySmallFireball extends EntityFireballFireball {
@@ -225,7 +225,7 @@ index e44249f59..34a5f481e 100644
      protected Item getDefaultItem() {
          return Items.SNOWBALL;
 diff --git a/src/main/java/net/minecraft/server/EntityThrownExpBottle.java b/src/main/java/net/minecraft/server/EntityThrownExpBottle.java
-index bb98b59ff..b1e81cb74 100644
+index 2d3ca8c42..1d32518bd 100644
 --- a/src/main/java/net/minecraft/server/EntityThrownExpBottle.java
 +++ b/src/main/java/net/minecraft/server/EntityThrownExpBottle.java
 @@ -51,4 +51,11 @@ public class EntityThrownExpBottle extends EntityProjectileThrowable {
@@ -241,7 +241,7 @@ index bb98b59ff..b1e81cb74 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/EntityWitherSkull.java b/src/main/java/net/minecraft/server/EntityWitherSkull.java
-index a2d4b675e..d12e8839d 100644
+index 2c02e114c..4a97a7517 100644
 --- a/src/main/java/net/minecraft/server/EntityWitherSkull.java
 +++ b/src/main/java/net/minecraft/server/EntityWitherSkull.java
 @@ -116,4 +116,11 @@ public class EntityWitherSkull extends EntityFireball {
@@ -257,7 +257,7 @@ index a2d4b675e..d12e8839d 100644
 +    // Purpur end
  }
 diff --git a/src/main/java/net/minecraft/server/IProjectile.java b/src/main/java/net/minecraft/server/IProjectile.java
-index 51b812d30..371b60431 100644
+index 9f5ce64a6..58f03f1d2 100644
 --- a/src/main/java/net/minecraft/server/IProjectile.java
 +++ b/src/main/java/net/minecraft/server/IProjectile.java
 @@ -12,12 +12,26 @@ public abstract class IProjectile extends Entity {

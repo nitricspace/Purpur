@@ -21,7 +21,7 @@ index 6e97c5342..d94a54fab 100644
      public boolean villagerUseBrainTicksOnlyWhenLagging = true;
      private void villagerSettings() {
 diff --git a/src/main/java/org/spigotmc/ActivationRange.java b/src/main/java/org/spigotmc/ActivationRange.java
-index 6d382c192..214819dfb 100644
+index 0b93635ba..86825f172 100644
 --- a/src/main/java/org/spigotmc/ActivationRange.java
 +++ b/src/main/java/org/spigotmc/ActivationRange.java
 @@ -377,6 +377,7 @@ public class ActivationRange

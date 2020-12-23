@@ -6,7 +6,7 @@ Subject: [PATCH] Add option to disable zombie aggressiveness towards villagers
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/entity/ai/MobGoalHelper.java b/src/main/java/com/destroystokyo/paper/entity/ai/MobGoalHelper.java
-index afb40cfa5..1aa7c0305 100644
+index 89b56de75..ded483ace 100644
 --- a/src/main/java/com/destroystokyo/paper/entity/ai/MobGoalHelper.java
 +++ b/src/main/java/com/destroystokyo/paper/entity/ai/MobGoalHelper.java
 @@ -131,6 +131,10 @@ public class MobGoalHelper {
@@ -21,7 +21,7 @@ index afb40cfa5..1aa7c0305 100644
          ignored.add("selector_1");
          ignored.add("selector_2");
 diff --git a/src/main/java/net/minecraft/server/EntityDrowned.java b/src/main/java/net/minecraft/server/EntityDrowned.java
-index e3f765784..91438b8f0 100644
+index 9ae0897bf..e41572a2e 100644
 --- a/src/main/java/net/minecraft/server/EntityDrowned.java
 +++ b/src/main/java/net/minecraft/server/EntityDrowned.java
 @@ -31,7 +31,18 @@ public class EntityDrowned extends EntityZombie implements IRangedEntity {
@@ -45,7 +45,7 @@ index e3f765784..91438b8f0 100644
          this.targetSelector.a(5, new PathfinderGoalNearestAttackableTarget<>(this, EntityTurtle.class, 10, true, false, EntityTurtle.bo));
      }
 diff --git a/src/main/java/net/minecraft/server/EntityZombie.java b/src/main/java/net/minecraft/server/EntityZombie.java
-index 1f1716908..dc2078ced 100644
+index e3606722c..9e2878333 100644
 --- a/src/main/java/net/minecraft/server/EntityZombie.java
 +++ b/src/main/java/net/minecraft/server/EntityZombie.java
 @@ -58,7 +58,18 @@ public class EntityZombie extends EntityMonster {

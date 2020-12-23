@@ -5,7 +5,7 @@ Subject: [PATCH] Timings stuff
 
 
 diff --git a/src/main/java/co/aikar/timings/TimingsExport.java b/src/main/java/co/aikar/timings/TimingsExport.java
-index ee5c59d1e..f76958a35 100644
+index 5dfa06588..dae2e5d70 100644
 --- a/src/main/java/co/aikar/timings/TimingsExport.java
 +++ b/src/main/java/co/aikar/timings/TimingsExport.java
 @@ -227,10 +227,14 @@ public class TimingsExport extends Thread {
