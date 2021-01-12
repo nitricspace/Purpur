@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: William Blake Galbreath <Blake.Galbreath@GMail.com>
+Date: Fri, 6 Mar 2020 13:37:26 -0600
+Subject: [PATCH] Fix the dead lagging the server
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 259ee6dd50c0782b1d137cadba878e7c209f3329..2e0362cb1bf987acb7edc71721dd27b56abff398 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -1532,6 +1532,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+         this.pitch = MathHelper.a(f1, -90.0F, 90.0F) % 360.0F;
+         this.lastYaw = this.yaw;
+         this.lastPitch = this.pitch;
++        if (valid && !dead) world.getChunkAt((int) Math.floor(this.locX()) >> 4, (int) Math.floor(this.locZ()) >> 4); // CraftBukkit // Paper // Purpur
+     }
+ 
+     public void f(double d0, double d1, double d2) {
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 1c396ec56f35d8764e3bf7b67a7984393eb94b3b..50ac6a9547e142d87007517ed18d9f64d93281fc 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -2486,7 +2486,7 @@ public abstract class EntityLiving extends Entity {
+             }
+         }
+ 
+-        this.movementTick();
++        if (!dead) this.movementTick(); // Purpur
+         double d0 = this.locX() - this.lastX;
+         double d1 = this.locZ() - this.lastZ;
+         float f = (float) (d0 * d0 + d1 * d1);
