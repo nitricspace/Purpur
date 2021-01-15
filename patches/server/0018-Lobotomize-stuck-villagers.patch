@@ -5,7 +5,7 @@ Subject: [PATCH] Lobotomize stuck villagers
 
 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 9ccc507515d125a3999c4c89d35faddeccc75be8..2e531d484dce881f2462175c5cc5a6ff57ac0a62 100644
+index 2e0362cb1bf987acb7edc71721dd27b56abff398..9598688c9f9dbdf8bebde9ff560fe1756857333f 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
 @@ -114,7 +114,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
@@ -18,7 +18,7 @@ index 9ccc507515d125a3999c4c89d35faddeccc75be8..2e531d484dce881f2462175c5cc5a6ff
      public float yaw;
      public float pitch;
 diff --git a/src/main/java/net/minecraft/server/EntityVillager.java b/src/main/java/net/minecraft/server/EntityVillager.java
-index 171e8553a339eb3c995369f274de86b824183ca6..a9cf67c7e550a33341070b34da30444ffa0981ee 100644
+index c034869310ca3dadbfe5425c45aaa80dac59ac88..b21b01580e4138305dffa5e7108551d7baaa6e50 100644
 --- a/src/main/java/net/minecraft/server/EntityVillager.java
 +++ b/src/main/java/net/minecraft/server/EntityVillager.java
 @@ -164,15 +164,37 @@ public class EntityVillager extends EntityVillagerAbstract implements Reputation

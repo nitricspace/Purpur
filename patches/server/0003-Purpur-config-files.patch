@@ -65,7 +65,7 @@ index ecff0657e5666ddc2e6a5c3111bfb2b8dd2b78d3..3ee8d31c453105eca7b96bede39a9ebb
          // Paper end
          com.tuinity.tuinity.config.TuinityConfig.init((java.io.File) options.valueOf("tuinity-settings")); // Tuinity - Server Config
 diff --git a/src/main/java/net/minecraft/server/EntityVillager.java b/src/main/java/net/minecraft/server/EntityVillager.java
-index 9b35c8ad9efe9241fe442bc6ef2e9f62def386d8..2c4c13b30b4533f5476f1128317d477ad8001bf5 100644
+index de9ea6770b8afc5e1020bef04ac6cca93b6b420c..21d0570a59240e955ff148bac0226b220a7dec36 100644
 --- a/src/main/java/net/minecraft/server/EntityVillager.java
 +++ b/src/main/java/net/minecraft/server/EntityVillager.java
 @@ -166,7 +166,7 @@ public class EntityVillager extends EntityVillagerAbstract implements Reputation
@@ -420,7 +420,7 @@ index 92bfae8f8249e70105fd848f01f950b67bb1d97e..7502726207073bdac6fc416606457569
          public void restart() {
              org.spigotmc.RestartCommand.restart();
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index d2ec9f7f105a36a1077ac0df56b1abb4786a565b..b3c0ba202d26fd1f71a19839e2cb9fc9b56ab1ce 100644
+index b63718cdae8d96edce2cc80ea0fd16c560be78b8..c8ed14515cea8451cc1d43c0ab8466cd19b35d0d 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -146,6 +146,14 @@ public class Main {
